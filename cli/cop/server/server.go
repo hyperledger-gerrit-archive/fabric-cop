@@ -9,7 +9,6 @@ import (
 	"github.com/cloudflare/cfssl/cli/serve"
 	"github.com/cloudflare/cfssl/log"
 	"github.com/hyperledger/fabric-cop/cli/cop/config"
-	lib "github.com/hyperledger/fabric-cop/lib/defaultImpl"
 	"github.com/hyperledger/fabric-cop/util"
 	"github.com/jmoiron/sqlx"
 )
@@ -53,7 +52,6 @@ func (s *Server) CreateHome() (string, error) {
 	if home == "" {
 		home = "/var/hyperledger/production/.cop"
 	}
-
 	if _, err := os.Stat(home); err != nil {
 		if os.IsNotExist(err) {
 			err := os.MkdirAll(home, 0755)
@@ -69,20 +67,8 @@ func (s *Server) CreateHome() (string, error) {
 // ConfigureDB creates Database and Tables if they don't exist
 func (s *Server) ConfigureDB(dataSource string, cfg *config.Config) error {
 	log.Debug("Configure DB")
-	db, err := util.GetDB(cfg.DBdriver, dataSource)
+	db, err := util.CreateTables(cfg.DBdriver, dataSource)
 	if err != nil {
-		return err
-	}
-
-	if _, err := db.Exec("CREATE TABLE IF NOT EXISTS Users (id VARCHAR(64), enrollmentId VARCHAR(100), token BLOB, metadata VARCHAR(256), state INTEGER, key BLOB)"); err != nil {
-		return err
-	}
-
-	if _, err := db.Exec("CREATE TABLE IF NOT EXISTS Groups (name VARCHAR(64), parentID VARCHAR(64))"); err != nil {
-		return err
-	}
-
-	if _, err := db.Exec("CREATE TABLE certificates (serial_number bytea NOT NULL, authority_key_identifier bytea NOT NULL, ca_label bytea, status bytea NOT NULL, reason int, expiry timestamp, revoked_at timestamp, pem bytea NOT NULL, PRIMARY KEY(serial_number, authority_key_identifier))"); err != nil {
 		return err
 	}
 
@@ -93,9 +79,10 @@ func (s *Server) ConfigureDB(dataSource string, cfg *config.Config) error {
 
 // BootstrapDB loads the database based on config file
 func (s *Server) BootstrapDB(db *sqlx.DB, cfg *config.Config) error {
-	b := lib.BootstrapDB(db)
-	b.PopulateGroupsTable(db)
-	b.PopulateUsersTable(db, cfg)
+	log.Debug("Bootstrap DB")
+	b := BootstrapDB(db, cfg)
+	b.PopulateGroupsTable()
+	b.PopulateUsersTable()
 
 	return nil
 }
@@ -110,13 +97,10 @@ func startMain(args []string, c cli.Config) error {
 	if err != nil {
 		return err
 	}
-
 	config.Init(&c)
 	cfg := config.CFG
 	cfg.Home = home
-
 	dataSource := filepath.Join(home, cfg.DataSource)
-
 	if cfg.DataSource != "" {
 		// Check if database exists if not create it and bootstrap it based on the config file
 		if _, err := os.Stat(dataSource); err != nil {

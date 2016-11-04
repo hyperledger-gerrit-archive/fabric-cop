@@ -6,9 +6,9 @@
 package cop
 
 import (
-	"fmt"
 	"os"
 
+	"github.com/cloudflare/cfssl/log"
 	real "github.com/hyperledger/fabric-cop/api"
 	def "github.com/hyperledger/fabric-cop/lib/defaultImpl"
 )
@@ -71,10 +71,6 @@ type EnrollRequest struct {
 	real.EnrollRequest
 }
 
-type Attribute struct {
-	real.Attribute
-}
-
 type UserRecord struct {
 	real.UserRecord
 }
@@ -108,7 +104,7 @@ func init() {
 	if provider == "default" {
 		real.SetMgr(new(def.Mgr))
 	} else {
-		fmt.Printf("invalid COP provider: %s\n", provider)
+		log.Debugf("invalid COP provider: %s\n", provider)
 		os.Exit(1)
 	}
 }
