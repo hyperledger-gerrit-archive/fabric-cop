@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/hyperledger/fabric-cop/idp"
+	"github.com/hyperledger/fabric-cop/util"
 )
 
 func newVerifier(cert []byte) Verifier {
@@ -12,7 +13,7 @@ func newVerifier(cert []byte) Verifier {
 
 // Verifier implements the idp.Verifier interface
 type Verifier struct {
-	cert []byte
+	Cert []byte `json:"cert"`
 }
 
 // VerifySelf verifies myself
@@ -36,11 +37,10 @@ func (v *Verifier) VerifyAttributes(proof [][]byte, spec *idp.AttributeProofSpec
 }
 
 // Serialize a verifier
-func (v *Verifier) Serialize() []byte {
-	// TODO: Implement
-	return nil
+func (v *Verifier) Serialize() ([]byte, error) {
+	return util.Marshal(v, "Verifier")
 }
 
 func (v *Verifier) getMyCert() []byte {
-	return v.cert
+	return v.Cert
 }

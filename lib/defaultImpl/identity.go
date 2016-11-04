@@ -51,9 +51,8 @@ func (i *Identity) Delete() error {
 }
 
 // Serialize an identity
-func (i *Identity) Serialize() []byte {
-	// TODO: Implement
-	return nil
+func (i *Identity) Serialize() ([]byte, error) {
+	return util.Marshal(i, "identity")
 }
 
 func (i *Identity) post(endpoint string, reqBody interface{}) ([]byte, error) {
@@ -76,6 +75,9 @@ func (i *Identity) addTokenAuthHdr(req *http.Request, body []byte) error {
 	log.Debug("addTokenAuthHdr begin")
 	cert := i.getMyCert()
 	key := i.getMyKey() // TODO: Will change for BCCSP since we can't see key
+	if cert == nil || key == nil {
+		return cop.NewError(cop.AuthorizationError, "Failed to set authorization header token")
+	}
 	token, tokenerr := util.CreateToken(cert, key, body)
 	if tokenerr != nil {
 		log.Debug("addTokenAuthHdr failed: CreateToken")

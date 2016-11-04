@@ -13,7 +13,7 @@ func newSigner(key []byte, cert []byte) Signer {
 // Signer implements idp.Signer interface
 type Signer struct {
 	Verifier
-	key []byte
+	Key []byte `json:"key"`
 }
 
 // Sign the message
@@ -31,6 +31,7 @@ func (s *Signer) NewAttributeProof(spec *idp.AttributeProofSpec) (proof []byte, 
 	return nil, errors.New("NotImplemented")
 }
 
+// TODO:
 func (s *Signer) getMyKey() []byte {
-	return s.key
+	return s.Key
 }

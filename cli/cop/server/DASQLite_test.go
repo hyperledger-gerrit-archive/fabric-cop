@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package defaultImpl
+package server
 
 import (
 	"os"
@@ -22,12 +22,13 @@ import (
 	"testing"
 
 	api "github.com/hyperledger/fabric-cop/api"
+	"github.com/hyperledger/fabric-cop/util"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 )
 
 const (
-	dbPath = "/tmp/hyperledger/production/.cop/eca.db"
+	dbPath = "/tmp/dbtesting"
 
 	sqliteTruncateTables = `
 DELETE FROM Users;
@@ -36,7 +37,7 @@ DELETE FROM Groups;
 )
 
 type TestAccessor struct {
-	Accessor api.Accessor
+	Accessor *Accessor
 	DB       *sqlx.DB
 }
 
@@ -45,27 +46,26 @@ func (ta *TestAccessor) Truncate() {
 }
 
 func TestSQLite(t *testing.T) {
-	err := os.MkdirAll("/tmp/hyperledger/production/.cop", 0777)
-	if err != nil {
-		t.Error("Failed to create directory store database")
+	if _, err := os.Stat(dbPath); err != nil {
+		if os.IsNotExist(err) {
+			os.MkdirAll(dbPath, 0755)
+		}
+	} else {
+		os.RemoveAll(dbPath)
+		os.MkdirAll(dbPath, 0755)
 	}
-	db := SQLiteDB(dbPath)
-	createTables(db)
+
+	db, err := util.CreateTables("sqlite3", dbPath+"/testing.db")
+	if err != nil {
+		t.Error(err)
+	}
 	ta := TestAccessor{
-		Accessor: NewAccessor(db),
+		Accessor: NewDBAccessor(),
 		DB:       db,
 	}
+	ta.Accessor.SetDB(db)
 	testEverything(ta, t)
 	removeDatabase()
-}
-
-func SQLiteDB(dbpath string) *sqlx.DB {
-	db, err := sqlx.Open("sqlite3", dbpath)
-	if err != nil {
-		panic(err)
-	}
-
-	return db
 }
 
 // Truncate truncates the DB
@@ -89,7 +89,7 @@ func createTables(db *sqlx.DB) {
 }
 
 func removeDatabase() {
-	os.Remove(dbPath)
+	os.RemoveAll(dbPath)
 }
 
 func testEverything(ta TestAccessor, t *testing.T) {

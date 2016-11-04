@@ -14,51 +14,57 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package defaultImpl
+package server
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/cloudflare/cfssl/cli"
 	"github.com/hyperledger/fabric-cop/cli/cop/config"
 	"github.com/hyperledger/fabric-cop/util"
-	"github.com/jmoiron/sqlx"
 )
 
 // var testDB *sqlx.DB
-var CFG *config.Config
+var bootCFG *config.Config
 
 const (
-	path = "/tmp/hyperledger/bootstrapTest"
+	bootPath = "/tmp/bootstrapTest"
 )
 
-func prepBootstrap() *sqlx.DB {
-	os.MkdirAll(path, 0755)
+func prepBootstrap() *Bootstrap {
+	if _, err := os.Stat(bootPath); err != nil {
+		if os.IsNotExist(err) {
+			os.MkdirAll(bootPath, 0755)
+		}
+	} else {
+		os.RemoveAll(bootPath)
+		os.MkdirAll(bootPath, 0755)
+	}
 	cfg := new(cli.Config)
-	cfg.ConfigFile = "../../testdata/cop.json"
-	cfg.DBConfigFile = "../../testdata/bootstrapTest.json"
+	cfg.ConfigFile = "../../../testdata/cop.json"
+	cfg.DBConfigFile = "../../../testdata/bootstrapTest.json"
 	config.Init(cfg)
-	CFG = config.CFG
-	testDB, _ := util.CreateTables(CFG)
-	return testDB
+	bootCFG = config.CFG
+	bootCFG.Home = bootPath
+	dataSource := filepath.Join(bootCFG.Home, bootCFG.DataSource)
+	db, _ := util.CreateTables(bootCFG.DBdriver, dataSource)
+	b := BootstrapDB(db, bootCFG)
+	return b
 }
 
-func TestAll(t *testing.T) {
-	db := prepBootstrap()
-	b := BootstrapDB(db)
+func TestAllBootstrap(t *testing.T) {
+	b := prepBootstrap()
 
-   _ = b
-   /* Saad TODO: temporarily commenting out til working (Keith)
 	testBootstrapGroup(b, t)
 	testBootstrapUsers(b, t)
-   */
 
-	os.RemoveAll(path)
+	os.RemoveAll(bootPath)
 }
 
 func testBootstrapGroup(b *Bootstrap, t *testing.T) {
-	b.PopulateGroupsTable(b.db)
+	b.PopulateGroupsTable()
 
 	_, _, err := b.dbAccessor.GetGroup("bank_b")
 
@@ -68,9 +74,9 @@ func testBootstrapGroup(b *Bootstrap, t *testing.T) {
 }
 
 func testBootstrapUsers(b *Bootstrap, t *testing.T) {
-	b.PopulateUsersTable(b.db, CFG)
+	b.PopulateUsersTable()
 
-	_, err := b.dbAccessor.GetUser("keith")
+	_, err := b.dbAccessor.GetUser("admin")
 
 	if err != nil {
 		t.Error("Failed bootstrapping users table")

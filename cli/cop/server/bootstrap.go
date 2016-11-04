@@ -1,9 +1,8 @@
-package defaultImpl
+package server
 
 import (
 	"encoding/json"
 	"errors"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -16,27 +15,32 @@ import (
 type Bootstrap struct {
 	db         *sqlx.DB
 	dbAccessor *Accessor
+	cfg        *config.Config
 }
 
-func BootstrapDB(db *sqlx.DB) *Bootstrap {
+func BootstrapDB(db *sqlx.DB, cfg *config.Config) *Bootstrap {
 	b := new(Bootstrap)
 	b.db = db
-	b.dbAccessor = NewAccessor(b.db)
+	b.dbAccessor = NewDBAccessor()
+	b.dbAccessor.SetDB(b.db)
+	b.cfg = cfg
 	return b
 }
 
-func (b *Bootstrap) PopulateUsersTable(db *sqlx.DB, cfg *config.Config) error {
+func (b *Bootstrap) PopulateUsersTable() error {
 	log.Debug("populateUsersTable")
-	for name, info := range cfg.Users {
+	for name, info := range b.cfg.Users {
 		metaDataBytes, _ := json.Marshal(info.Attributes)
 
 		id := name
+		userType := info.Type
 		group := info.Group
 		metadata := string(metaDataBytes)
 		registrar := ""
+		pass := info.Pass
 
 		reg := NewRegisterUser()
-		reg.RegisterUser(id, group, metadata, registrar)
+		reg.RegisterUser(id, userType, group, metadata, registrar, pass)
 	}
 	return nil
 }
@@ -59,18 +63,16 @@ func (b *Bootstrap) populateGroup(name, parent, key string, level int, db *sqlx.
 }
 
 // populateAffiliationGroupsTable populates affiliation groups table.
-func (b *Bootstrap) PopulateGroupsTable(db *sqlx.DB) {
+func (b *Bootstrap) PopulateGroupsTable() {
+	log.Debug("PopulateGroupsTable")
 	replacer := strings.NewReplacer(".", "_")
 	viper.SetEnvKeyReplacer(replacer)
 	viper.SetConfigName("cop")
 	viper.SetConfigType("json")
 	viper.AddConfigPath("./")
 
-	gopath := os.Getenv("GOPATH")
-	for _, p := range filepath.SplitList(gopath) {
-		cfgpath := filepath.Join(p, "src/github.com/hyperledger/fabric-cop")
-		viper.AddConfigPath(cfgpath)
-	}
+	configPath := filepath.Dir(b.cfg.ConfigFile)
+	viper.AddConfigPath(configPath)
 	err := viper.ReadInConfig()
 	if err != nil {
 		log.Errorf("Fatal error when reading cop config file: %s", err)
@@ -79,7 +81,7 @@ func (b *Bootstrap) PopulateGroupsTable(db *sqlx.DB) {
 	key := "groups"
 	affiliationGroups := viper.GetStringMapString(key)
 	for name := range affiliationGroups {
-		b.populateGroup(name, "", key, 1, db)
+		b.populateGroup(name, "", key, 1, b.db)
 	}
 }
 
@@ -89,12 +91,14 @@ func registerGroup(name string, parentName string, db *sqlx.DB) error {
 
 	log.Debug("Registering affiliation group " + name + " parent " + parentName + ".")
 
-	dbAccessor := NewAccessor(db)
+	dbAccessor := NewDBAccessor()
+	dbAccessor.SetDB(db)
 
 	var err error
 	_, _, err = dbAccessor.GetGroup(name)
 	if err == nil {
-		return errors.New("User already registered")
+		log.Error("Group already registered")
+		return errors.New("Group already registered")
 	}
 
 	err = dbAccessor.InsertGroup(name, parentName)

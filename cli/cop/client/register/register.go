@@ -5,8 +5,10 @@ import (
 	"fmt"
 
 	"github.com/cloudflare/cfssl/cli"
+	"github.com/cloudflare/cfssl/log"
 	cutil "github.com/hyperledger/fabric-cop/cli/cop/client"
 	"github.com/hyperledger/fabric-cop/idp"
+	lib "github.com/hyperledger/fabric-cop/lib/defaultImpl"
 
 	"github.com/hyperledger/fabric-cop/util"
 )
@@ -48,6 +50,18 @@ func myMain(args []string, c cli.Config) error {
 	if err != nil {
 		return err
 	}
+	home := util.GetDefaultHomeDir()
+	identity, err := util.ReadFile(home + "/client.json")
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	id := new(lib.Identity)
+	err = util.Unmarshal(identity, id, "idp.Identity")
+	if err != nil {
+		log.Error(err)
+		return err
+	}
 
 	copServer, _, err := cli.PopFirstArgument(args)
 	if err != nil {
@@ -58,12 +72,15 @@ func myMain(args []string, c cli.Config) error {
 	if err != nil {
 		return err
 	}
+	regReq.Registrar = id
 	resp, err := client.Register(regReq)
 	if err != nil {
-		fmt.Printf("%+v", resp)
+		return err
 	}
 
-	return err
+	fmt.Printf("One time Password: %s\n", resp.Secret)
+
+	return nil
 }
 
 // Command assembles the definition of Command 'enroll'
