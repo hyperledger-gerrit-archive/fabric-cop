@@ -29,11 +29,12 @@ const (
 	CFG  string = "../../testdata/cop.json"
 	CSR  string = "../../testdata/csr.json"
 	REG  string = "../../testdata/registerRequest.json"
+	CSRJSON string = "../../testdata/csr_ecdsa.json"
 )
 
 var serverStarted bool
 var serverExitCode = 0
-
+var initStarted bool
 // Test the server start command
 func TestStartServer(t *testing.T) {
 	rtn := startServer()
@@ -89,4 +90,29 @@ func register(file string) int {
 	rtn := COPMain([]string{"cop", "client", "register", file, "keith", "http://localhost:8888", "loglevel=0"})
 	fmt.Printf("register result is '%d'\n", rtn)
 	return rtn
+}
+
+func TestServerInit(t *testing.T) {
+	rtn := initServer()
+	if rtn != 0 {
+		t.Errorf("Failed to invoke initServer with return code: %d", rtn)
+		t.FailNow()
+	}
+}
+func initServer() int {
+	if !initStarted {
+		initStarted = true
+		fmt.Println("Generating private key and self-signed certiticate for COP server ...")
+		go genCertAndKey()
+		time.Sleep(3 * time.Second)
+		fmt.Println("Writing server-cert.pem and server-key.pem to $COP_HOME directory")
+	} else {
+		fmt.Println("Server init already running")
+	}
+	return serverExitCode
+}
+
+func genCertAndKey() {
+	os.Setenv("COP_DEBUG", "true")
+	serverExitCode = COPMain([]string{"cop", "server", "init", CSRJSON})
 }
