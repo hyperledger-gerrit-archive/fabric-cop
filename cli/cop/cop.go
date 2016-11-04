@@ -81,6 +81,7 @@ func serverCommand() {
 	// The server commands
 	cmds := map[string]*cli.Command{
 		"start": server.StartCommand,
+		"init": server.InitCommand,
 	}
 	// Set the authentication handler
 	serve.SetWrapHandler(server.NewAuthWrapper)

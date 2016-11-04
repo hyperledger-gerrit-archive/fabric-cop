@@ -5,6 +5,10 @@
 
 package api
 
+import(
+	"math/big"
+	"time"
+)
 // Mgr is the main interface to COP functionality
 type Mgr interface {
 
@@ -14,8 +18,8 @@ type Mgr interface {
 
 // Client is a COP client
 type Client interface {
-	//GetTcertBatch gets a batch of tcerts
-	GetTcertBatch(jsonString string, signatureJSON string) (string, error)
+	// TCertBatchReq returns a *TCertBatchResp which contains a batch of tcerts
+	TCertBatchReq(tcertrequest *TCertBatchRequest) (*TCertBatchResp, error)
 	// GetHomeDir returns the home directory
 	GetHomeDir() string
 
@@ -59,7 +63,47 @@ type Client interface {
 		SetJoinRequestListener(listener JoinRequestListener)
 	*/
 }
+// TCertBatchRequest is the structure for the request of tcert batch
+type TCertBatchRequest struct {
+	//required fields
+	UserID string
+	Num    int64 `json:"num"`
 
+	//optional fields
+	RootPreKey                   *big.Int
+	Attribute_Encryption_Enabled bool // default is false
+	AttributeSet                 []Attribute
+	ValidityPeriod               float64
+	CSRData                      CertData
+}
+// CertData is the tcert data
+type CertData struct {
+	C  string
+	L  string
+	O  string
+	OU string
+	ST string
+	CN string
+}
+
+// TCertBatchResp is the request for getting batch of tcerts
+type TCertBatchResp struct {
+	Certs CertSet `json:"TCertBatch,omitempty"`
+}
+
+// CertSet contains the set of tcerts
+type CertSet struct {
+	Ts 		time.Time
+	Id    string                 `json:"id,omitempty"`
+	Key   string                 `json:"key,omitempty"`  //Base64 encoded string
+	Certs []TCert `json:"TCertList,omitempty"` //Base64 encoded string
+}
+
+//TCert is the tcert in string format
+type TCert struct {
+	Cert string `json:"TCert,omitempty"` //base64 encoded string
+	Keys map[string]string  `json:"keys,omitempty"` //base64 encoded string as value
+}
 // JoinRequest is the state of a request to join the blockchain network
 type JoinRequest struct {
 	ID        string             // Unique ID of join request
