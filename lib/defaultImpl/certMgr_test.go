@@ -30,7 +30,6 @@ func TestGenCert(t *testing.T) {
 }
 
 func TestNoCSR(t *testing.T) {
-	// fmt.Println("DEBUG_ - TestSelfSign")
 	cm := getCertMgr(t)
 	if cm == nil {
 		return
@@ -45,7 +44,6 @@ func TestNoCSR(t *testing.T) {
 }
 
 func TestNoPrefix(t *testing.T) {
-	// fmt.Println("DEBUG_ - TestSelfSign")
 	cm := getCertMgr(t)
 	if cm == nil {
 		return
@@ -60,7 +58,6 @@ func TestNoPrefix(t *testing.T) {
 }
 
 func TestNoParticipantFile(t *testing.T) {
-	// fmt.Println("DEBUG_ - TestSelfSign")
 	cm := getCertMgr(t)
 	if cm == nil {
 		return

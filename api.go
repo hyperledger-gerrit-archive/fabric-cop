@@ -71,9 +71,9 @@ type EnrollRequest struct {
 	real.EnrollRequest
 }
 
-type Attribute struct {
-	real.Attribute
-}
+// type Attribute struct {
+// 	real.Attribute
+// }
 
 type UserRecord struct {
 	real.UserRecord

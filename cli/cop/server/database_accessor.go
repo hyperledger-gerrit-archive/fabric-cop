@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package defaultImpl
+package server
 
 import (
 	"errors"
@@ -33,8 +33,8 @@ func init() {
 
 const (
 	insertUser = `
-INSERT INTO Users (id, enrollmentId, token, metadata, state, key)
-	VALUES (:id, :enrollmentId, :token, :metadata, :state, :key);`
+INSERT INTO Users (id, enrollmentId, token, type, metadata, state, key)
+	VALUES (:id, :enrollmentId, :token, :type, :metadata, :state, :key);`
 
 	deleteUser = `
 DELETE FROM Users
@@ -79,9 +79,8 @@ func (d *Accessor) checkDB() error {
 	return nil
 }
 
-// NewAccessor returns a new Accessor.
-func NewAccessor(db *sqlx.DB) *Accessor {
-	return &Accessor{db: db}
+func NewDBAccessor() *Accessor {
+	return &Accessor{}
 }
 
 // SetDB changes the underlying sql.DB object Accessor is manipulating.
@@ -100,6 +99,7 @@ func (d *Accessor) InsertUser(user cop.UserRecord) error {
 		ID:           user.ID,
 		EnrollmentID: user.EnrollmentID,
 		Token:        user.Token,
+		Type:         user.Type,
 		Metadata:     user.Metadata,
 		State:        user.State,
 		Key:          user.Key,

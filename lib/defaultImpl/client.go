@@ -2,6 +2,8 @@ package defaultImpl
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -11,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/cloudflare/cfssl/api"
 	"github.com/cloudflare/cfssl/csr"
 	"github.com/cloudflare/cfssl/log"
 	cop "github.com/hyperledger/fabric-cop/api"
@@ -50,15 +53,28 @@ func (c *Client) Capabilities() []idp.Capability {
 func (c *Client) Register(req *idp.RegistrationRequest) (*idp.RegistrationResponse, error) {
 	log.Debugf("Register %+v", req)
 	// Send a post to the "register" endpoint with req as body
-	buf, err := req.Registrar.(*Identity).post("register", req)
+
+	var request cop.RegisterRequest
+	request.User = req.Name
+	request.Type = req.Type
+	request.Group = req.Group
+	request.Attributes = req.Attributes
+	request.CallerID = req.Registrar.GetName()
+
+	newID := newIdentity(c, req.Registrar.GetName(), req.Registrar.(*Identity).getMyKey(), req.Registrar.(*Identity).getMyCert())
+	req.Registrar = newID
+
+	buf, err := req.Registrar.(*Identity).post("register", request)
 	if err != nil {
+		log.Error(err)
 		return nil, err
 	}
+
+	var response api.Response
+	json.Unmarshal(buf, &response)
 	resp := new(idp.RegistrationResponse)
-	err = util.Unmarshal(buf, resp, "idp.RegistrationResponse")
-	if err != nil {
-		return nil, err
-	}
+	resp.Secret = response.Result.(string)
+
 	log.Debug("Register success")
 	return resp, nil
 }
@@ -91,9 +107,17 @@ func (c *Client) Enroll(req *idp.EnrollmentRequest) (idp.Identity, error) {
 		return nil, err
 	}
 
-	log.Debug("enroll success")
+	var resp api.Response
+	json.Unmarshal(cert, &resp)
 
-	return newIdentity(c, req.Name, key, cert), nil
+	certByte, _ := base64.StdEncoding.DecodeString(resp.Result.(string))
+
+	if resp.Result != nil && resp.Success == true {
+		log.Debug("Enroll success")
+		return newIdentity(c, req.Name, key, certByte), nil
+	}
+
+	return nil, cop.NewError(cop.EnrollingUserError, "Failed to enroll User")
 }
 
 // RegisterAndEnroll registers and enrolls a new identity
@@ -109,8 +133,10 @@ func (c *Client) ImportSigner(req *idp.ImportSignerRequest) (idp.Signer, error) 
 }
 
 // DeserializeIdentity deserializes an identity
-func (c *Client) DeserializeIdentity([]byte) (idp.Identity, error) {
-	return nil, errors.New("NotImplemented")
+func (c *Client) DeserializeIdentity(buf []byte) (idp.Identity, error) {
+	id := new(Identity)
+	err := util.Unmarshal(buf, id, "Identity")
+	return id, err
 }
 
 // Create a new request

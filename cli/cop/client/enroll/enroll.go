@@ -1,13 +1,12 @@
 package enroll
 
 import (
-	"fmt"
-
 	"github.com/cloudflare/cfssl/cli"
 	"github.com/cloudflare/cfssl/log"
+
 	cutil "github.com/hyperledger/fabric-cop/cli/cop/client"
-	"github.com/hyperledger/fabric-cop/cli/cop/config"
 	"github.com/hyperledger/fabric-cop/idp"
+	"github.com/hyperledger/fabric-cop/util"
 )
 
 var usageText = `cop client enroll -- Enroll with COP server
@@ -28,10 +27,6 @@ Flags:
 var flags = []string{}
 
 func myMain(args []string, c cli.Config) error {
-	fmt.Println("enroll - main()")
-
-	config.Init(&c)
-
 	log.Debug("in myMain of 'cop client enroll'")
 
 	id, args, err := cli.PopFirstArgument(args)
@@ -62,13 +57,32 @@ func myMain(args []string, c cli.Config) error {
 		Secret: secret,
 	}
 
+	// mgr, _ := lib.NewMgr()
+	// cop.SetMgr(mgr)
+	// client := cop.NewClient()
+	// client.SetServerAddr(copServer)
+	// cert, err := client.Enroll(req, csrJSON)
+
 	client, err := cutil.NewClient(copServer)
 	if err != nil {
 		return err
 	}
-	_, err = client.Enroll(req)
+	ID, err := client.Enroll(req)
+	if err != nil {
+		return err
+	}
 
-	return err
+	idByte, err := ID.Serialize()
+	if err != nil {
+		return err
+	}
+	home := util.GetDefaultHomeDir()
+	err = util.WriteFile(home+"/client.json", idByte, 0644)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Command assembles the definition of Command 'enroll'

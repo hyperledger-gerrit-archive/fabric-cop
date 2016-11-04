@@ -14,17 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package defaultImpl
+package server
 
 import (
 	"encoding/json"
 	"errors"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/cloudflare/cfssl/cli"
 	cop "github.com/hyperledger/fabric-cop/api"
 	"github.com/hyperledger/fabric-cop/cli/cop/config"
+	"github.com/hyperledger/fabric-cop/idp"
 	"github.com/hyperledger/fabric-cop/util"
 	"github.com/jmoiron/sqlx"
 )
@@ -32,59 +34,71 @@ import (
 type Admin struct {
 	User       string
 	Pass       []byte
+	Type       string
 	Group      string
-	Attributes []cop.Attribute
+	Attributes []idp.Attribute
 }
 
 var (
-	NotRegistrar = Admin{User: "testUser2", Group: "bank_b", Attributes: []cop.Attribute{cop.Attribute{Name: "role", Value: []string{"client"}}}}
-	Registrar    = Admin{User: "admin", Pass: []byte("Xurw3yU9zI0l"), Group: "bank_a", Attributes: []cop.Attribute{cop.Attribute{Name: "hf.Registrar.DelegateRoles", Value: []string{"client", "validator", "auditor"}}}}
-	testUser     = cop.RegisterRequest{User: "testUser", Group: "bank_a", Attributes: []cop.Attribute{cop.Attribute{Name: "role", Value: []string{"client"}}}}
-	testAuditor  = cop.RegisterRequest{User: "testAuditor", Attributes: []cop.Attribute{cop.Attribute{Name: "role", Value: []string{"auditor"}}}}
-	testClient1  = cop.RegisterRequest{User: "testClient1", Group: "bank_a", Attributes: []cop.Attribute{cop.Attribute{Name: "role", Value: []string{"client"}}}}
-	testPeer     = cop.RegisterRequest{User: "testPeer", Group: "bank_b", Attributes: []cop.Attribute{cop.Attribute{Name: "Roles", Value: []string{"peer"}}}}
-	testEnroll   = cop.RegisterRequest{User: "testEnroll", Group: "bank_a", Attributes: []cop.Attribute{cop.Attribute{Name: "role", Value: []string{"client"}}}}
+	NotRegistrar = Admin{User: "testUser2", Pass: []byte("pass"), Type: "User", Group: "bank_b", Attributes: []idp.Attribute{idp.Attribute{Name: "role", Value: "client"}}}
+	Registrar    = Admin{User: "admin", Pass: []byte("adminpw"), Type: "User", Group: "bank_a", Attributes: []idp.Attribute{idp.Attribute{Name: "hf.Registrar.DelegateRoles", Value: "client,user,auditor"}}}
+	testUser     = cop.RegisterRequest{User: "testUser", Type: "User", Group: "bank_a", Attributes: []idp.Attribute{idp.Attribute{Name: "test", Value: "testValue"}}}
+	testAuditor  = cop.RegisterRequest{User: "testAuditor", Type: "Auditor", Attributes: []idp.Attribute{idp.Attribute{Name: "role", Value: "auditor"}}}
+	testClient1  = cop.RegisterRequest{User: "testClient1", Type: "Client", Group: "bank_a", Attributes: []idp.Attribute{idp.Attribute{Name: "test", Value: "testValue"}}}
+	testPeer     = cop.RegisterRequest{User: "testPeer", Type: "Peer", Group: "bank_b", Attributes: []idp.Attribute{idp.Attribute{Name: "test", Value: "testValue"}}}
+	testEnroll   = cop.RegisterRequest{User: "testEnroll", Type: "User", Group: "bank_a", Attributes: []idp.Attribute{idp.Attribute{Name: "test", Value: "testValue"}}}
 )
 
 const (
-	regPath = "/tmp/hyperledger/registerTest"
+	regPath = "/tmp/registerTest"
 )
 
 func prepRegister() {
-	os.MkdirAll(regPath, 0755)
+	if _, err := os.Stat(regPath); err != nil {
+		if os.IsNotExist(err) {
+			os.MkdirAll(regPath, 0755)
+		}
+	} else {
+		os.RemoveAll(regPath)
+		os.MkdirAll(regPath, 0755)
+	}
+
 	cfg := new(cli.Config)
-	cfg.ConfigFile = "../../testdata/cop.json"
-	cfg.DBConfigFile = "../../testdata/registerTest.json"
+	// cfg.ConfigFile = "../../../testdata/registerRegistrar.json"
+	cfg.DBConfigFile = "../../../testdata/registerTest.json"
 	config.Init(cfg)
 
 	regCFG := config.CFG
-	db, _ := util.CreateTables(regCFG)
-	bootstrapGroups(db)
-	bootstrapRegistrar(Registrar)
+	regCFG.Home = regPath
+	dataSource := filepath.Join(regCFG.Home, regCFG.DataSource)
+	db, _ := util.CreateTables(regCFG.DBdriver, dataSource)
+	bootstrap(db, regCFG)
 }
 
-// func getRegUser() *Register {
-// 	r := NewRegisterUser()
-// 	return r
-// }
-
-func bootstrapGroups(db *sqlx.DB) error {
-	b := new(Bootstrap)
-	b.PopulateGroupsTable(db)
-	return nil
+func bootstrap(db *sqlx.DB, cfg *config.Config) {
+	b := BootstrapDB(db, cfg)
+	b.PopulateGroupsTable()
+	bootstrapUsers()
 }
 
-func bootstrapRegistrar(registrar Admin) error {
+func bootstrapUsers() error {
 	r := NewRegisterUser()
 	if r == nil {
 		return errors.New("Failed to get register object")
 	}
-	metaDataBytes, err := json.Marshal(registrar.Attributes)
+	metaDataBytes, err := json.Marshal(Registrar.Attributes)
 	if err != nil {
 		return err
 	}
 	metaData := string(metaDataBytes)
-	r.RegisterUser(registrar.User, registrar.Group, metaData, "")
+	r.RegisterUser(Registrar.User, Registrar.Type, Registrar.Group, metaData, "", string(Registrar.Pass))
+
+	metaDataBytes, err = json.Marshal(NotRegistrar.Attributes)
+	if err != nil {
+		return err
+	}
+	metaData = string(metaDataBytes)
+	r.RegisterUser(NotRegistrar.User, NotRegistrar.Type, NotRegistrar.Group, metaData, "", string(NotRegistrar.Pass))
 
 	return nil
 }
@@ -97,7 +111,7 @@ func registerUser(registrar Admin, user *cop.RegisterRequest) (string, error) {
 	}
 	metaData := string(metaDataBytes)
 	user.CallerID = registrar.User
-	tok, err := r.RegisterUser(user.User, user.Group, metaData, user.CallerID)
+	tok, err := r.RegisterUser(user.User, user.Type, user.Group, metaData, user.CallerID)
 	if err != nil {
 		return "", err
 	}
@@ -107,14 +121,12 @@ func registerUser(registrar Admin, user *cop.RegisterRequest) (string, error) {
 func TestAll_Register(t *testing.T) {
 	prepRegister()
 
-   /* Saad TODO: commenting out til working (Keith)
 	testRegisterUser(t)
 	testRegisterDuplicateUser(t)
 	testRegisterAuditor(t)
 	testRegisterUserNonRegistrar(t)
 	testRegisterUserPeer(t)
 	testRegisterUserClient(t)
-   */
 
 	os.RemoveAll(regPath)
 }

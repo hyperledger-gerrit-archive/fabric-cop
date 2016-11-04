@@ -5,6 +5,11 @@
 
 package api
 
+import (
+	"github.com/hyperledger/fabric-cop/idp"
+	"github.com/jmoiron/sqlx"
+)
+
 // Mgr is the main interface to COP functionality
 type Mgr interface {
 
@@ -29,7 +34,7 @@ type Client interface {
 	SetServerAddr(dir string)
 
 	// Register a new identity
-	Register(registration *RegisterRequest) Error
+	Register(registration *RegisterRequest) ([]byte, Error)
 
 	// Enroll a registered identity
 	//	Enroll(user, pass string) (Identity, Error)
@@ -150,10 +155,12 @@ type KeyHandler interface {
 
 // RegisterRequest information
 type RegisterRequest struct {
-	User       string      `json:"user"`
-	Group      string      `json:"group"`
-	Attributes []Attribute `json:"attrs,omitempty"`
-	CallerID   string      `json:"callerID"`
+	User  string `json:"user"`
+	Group string `json:"group"`
+	// Type of identity being registered (e.g. "peer, app, user")
+	Type       string          `json:"type"`
+	Attributes []idp.Attribute `json:"attrs,omitempty"`
+	CallerID   string          `json:"callerID"`
 }
 
 type EnrollRequest struct {
@@ -162,11 +169,11 @@ type EnrollRequest struct {
 	CSR   []byte `json:"csr"`
 }
 
-// Attribute is an arbitrary name/value pair
-type Attribute struct {
-	Name  string   `json:"name"`
-	Value []string `json:"value"`
-}
+// // Attribute is an arbitrary name/value pair
+// type Attribute struct {
+// 	Name  string `json:"name"`
+// 	Value string `json:"value"`
+// }
 
 type Enrollment struct {
 	ID           string
@@ -180,6 +187,7 @@ type UserRecord struct {
 	ID           string `db:"id"`
 	EnrollmentID string `db:"enrollmentId"`
 	Token        string `db:"token"`
+	Type         string `db:"type"`
 	Metadata     string `db:"metadata"`
 	State        int    `db:"state"`
 	Key          int    `db:"key"`
@@ -187,6 +195,7 @@ type UserRecord struct {
 
 // Accessor abstracts the CRUD of certdb objects from a DB.
 type Accessor interface {
+	SetDB(db *sqlx.DB)
 	InsertUser(user UserRecord) error
 	DeleteUser(id string) error
 	UpdateUser(user UserRecord) error

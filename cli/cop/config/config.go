@@ -8,7 +8,7 @@ import (
 
 	"github.com/cloudflare/cfssl/cli"
 	"github.com/cloudflare/cfssl/log"
-	cop "github.com/hyperledger/fabric-cop/api"
+	"github.com/hyperledger/fabric-cop/idp"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -21,13 +21,18 @@ type Config struct {
 	DBdriver       string           `json:"driver"`
 	DataSource     string           `json:"data_source"`
 	Home           string
+	DBConfigFile   string
+	ConfigFile     string
+	CACert         string
+	CAKey          string
 }
 
 // User information
 type User struct {
 	Pass       string          `json:"pass"` // enrollment secret
+	Type       string          `json:"type"`
 	Group      string          `json:"group"`
-	Attributes []cop.Attribute `json:"attrs,omitempty"`
+	Attributes []idp.Attribute `json:"attrs,omitempty"`
 }
 
 // Constructor for COP config
@@ -44,7 +49,15 @@ var CFG *Config
 func Init(cfg *cli.Config) {
 	log.Debugf("config.Init file=%s", cfg.ConfigFile)
 	CFG = newConfig()
+
+	if cfg.CAFile != "" {
+		CFG.CACert = cfg.CAFile
+	}
+	if cfg.CAKeyFile != "" {
+		CFG.CAKey = cfg.CAKeyFile
+	}
 	if cfg.ConfigFile != "" {
+		CFG.ConfigFile = cfg.ConfigFile
 		body, err := ioutil.ReadFile(cfg.ConfigFile)
 		if err != nil {
 			panic(err.Error())
@@ -57,6 +70,7 @@ func Init(cfg *cli.Config) {
 	}
 
 	if cfg.DBConfigFile != "" {
+		CFG.DBConfigFile = cfg.DBConfigFile
 		body, err := ioutil.ReadFile(cfg.DBConfigFile)
 		if err != nil {
 			panic(err.Error())

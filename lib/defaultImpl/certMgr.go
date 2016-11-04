@@ -18,7 +18,6 @@ package defaultImpl
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"os/exec"
 	"path/filepath"
@@ -49,7 +48,6 @@ import (
 	"github.com/cloudflare/cfssl/cli/sign"
 	"github.com/cloudflare/cfssl/cli/version"
 	//	err "github.com/hyperledger/fabric-cop/errors"
-
 )
 
 var cfsslCmds = map[string]*cli.Command{
@@ -210,7 +208,7 @@ func executeCommand(args []string, command *cli.Command, c cli.Config, prefix st
 	tmpFile, _ := ioutil.TempFile("", "tmp")
 	defer os.Remove(tmpFile.Name())
 	if _, err = tmpFile.Write(outByte); err != nil {
-		fmt.Println("err: ", err)
+		log.Error(err)
 	}
 
 	os.Stdin = tmpFile
