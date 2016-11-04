@@ -17,7 +17,7 @@ limitations under the License.
 package main
 
 import (
-	"fmt"
+	"github.com/cloudflare/cfssl/log"
 	"os"
 	"testing"
 	"time"
@@ -29,11 +29,12 @@ const (
 	CFG  string = "../../testdata/cop.json"
 	CSR  string = "../../testdata/csr.json"
 	REG  string = "../../testdata/registerRequest.json"
+	CSRJSON string = "../../testdata/csr_tcdsa.json"
 )
 
 var serverStarted bool
 var serverExitCode = 0
-
+var initStarted bool
 // Test the server start command
 func TestStartServer(t *testing.T) {
 	rtn := startServer()
@@ -62,12 +63,12 @@ func TestStartServer(t *testing.T) {
 func startServer() int {
 	if !serverStarted {
 		serverStarted = true
-		fmt.Println("starting COP server ...")
+		log.Debug("starting COP server ...")
 		go runServer()
 		time.Sleep(3 * time.Second)
-		fmt.Println("COP server started")
+		log.Debug("COP server started")
 	} else {
-		fmt.Println("COP server already started")
+		log.Debug("COP server already started")
 	}
 	return serverExitCode
 }
@@ -78,15 +79,40 @@ func runServer() {
 }
 
 func enroll(user, pass string) int {
-	fmt.Printf("enrolling user '%s' with password '%s' ...\n", user, pass)
+	log.Debug("enrolling user '%s' with password '%s' ...\n", user, pass)
 	rtn := COPMain([]string{"cop", "client", "enroll", user, pass, CSR, "http://localhost:8888", "loglevel=0"})
-	fmt.Printf("enroll result is '%d'\n", rtn)
+	log.Debug("enroll result is '%d'\n", rtn)
 	return rtn
 }
 
 func register(file string) int {
-	fmt.Printf("register file '%s' ...\n", file)
+	log.Debug("register file '%s' ...\n", file)
 	rtn := COPMain([]string{"cop", "client", "register", file, "keith", "http://localhost:8888", "loglevel=0"})
-	fmt.Printf("register result is '%d'\n", rtn)
+	log.Debug("register result is '%d'\n", rtn)
 	return rtn
+}
+
+func TestServerInit(t *testing.T) {
+	rtn := initServer()
+	if rtn != 0 {
+		t.Errorf("Failed to invoke initServer with return code: %d", rtn)
+		t.FailNow()
+	}
+}
+func initServer() int {
+	if !initStarted {
+		initStarted = true
+		log.Debug("Generating private key and self-signed certiticate for COP server")
+		go genCertAndKey()
+		time.Sleep(3 * time.Second)
+		log.Debug("Writing server-cert.pem and server-key.pem to $COP_HOME directory")
+	} else {
+		log.Debug("Server init already running")
+	}
+	return serverExitCode
+}
+
+func genCertAndKey() {
+	os.Setenv("COP_DEBUG", "true")
+	serverExitCode = COPMain([]string{"cop", "server", "init", CSRJSON})
 }
