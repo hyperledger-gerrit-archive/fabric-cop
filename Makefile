@@ -27,18 +27,16 @@
 all: license cop tests unit-tests
 
 license: .FORCE
-	@scripts/license_check && exit
+	@scripts/check_license
 
 cop:
 	@echo "Building cop in bin directory ..."
-	@mkdir -p bin && cd cli/cop && go build -o ../../bin/cop
+	@mkdir -p bin && cd cli && go build -o ../bin/cop
 	@echo "Built bin/cop"
 
 tests: cop unit-tests
 
 unit-tests: cop
-	@echo "Running cop unit tests ..."
-	@go test `go list ./... | grep -v "/vendor/"`
-	@echo "Completed cop unit tests"
+	@scripts/run_tests
 
 .FORCE:
