@@ -14,24 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-/*
- * This file is simply a mirror of the interfaces in interfaces/interfaces.go.
- * This was done in order to prevent an import cycle.
- */
+// Package idp contains Identity Provider APIs as used by Hyperledger Fabric
+package idp
 
-package cop
-
-import (
-	"github.com/hyperledger/fabric-cop/idp"
-	"github.com/hyperledger/fabric-cop/lib"
-)
-
-// NewClient creates a COP client
-func NewClient(config string) (idp.ClientAPI, error) {
-	return lib.NewClient(config)
-}
-
-// NewIdentity creates a new identity
-func NewIdentity() (*lib.Identity, error) {
-	return new(lib.Identity), nil
-}
