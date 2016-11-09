@@ -126,7 +126,6 @@ func (s *Server) BootstrapDB(db *sqlx.DB, cfg *Config) error {
 // new HTTP server to handle sign, bundle, and validate requests.
 func startMain(args []string, c cli.Config) error {
 	log.Debug("server.startMain")
-
 	s := new(Server)
 	home, err := s.CreateHome()
 	if err != nil {

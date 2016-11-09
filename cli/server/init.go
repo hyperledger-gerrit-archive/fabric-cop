@@ -103,7 +103,6 @@ func initMain(args []string, c cli.Config) (err error) {
 
 	return nil
 }
-
 // Init takes a CSRJSON file and outputs private key and self-signed cert
 func Init(dir string) {
 	osArgs := os.Args

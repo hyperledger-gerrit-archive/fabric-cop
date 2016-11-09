@@ -152,6 +152,7 @@ func TestGetCOPHome(t *testing.T) {
 	}
 }
 
+
 func TestEmptyCSRFile(t *testing.T) {
 	osArgs := os.Args
 	os.Args = []string{"server", "init"}
