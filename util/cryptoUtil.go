@@ -30,10 +30,11 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"errors"
-	"github.com/cloudflare/cfssl/log"
 	"math/big"
 	"net"
 	"time"
+
+	"github.com/cloudflare/cfssl/log"
 )
 
 //GenNumber generates random numbers of type *big.Int with fixed length
@@ -343,4 +344,52 @@ func ValidateCert(cert *x509.Certificate) bool {
 	diffFromExpiry := notAfter.Sub(currentTime)
 	diffFromStart := currentTime.Sub(notBefore)
 	return ((diffFromExpiry > 0) && (diffFromStart > 0))
+}
+
+//GetCertificate returns interface containing *rsa.PublicKey or ecdsa.PublicKey
+func GetCertificate(certificate []byte) (*x509.Certificate, error) {
+
+	var certificates []*x509.Certificate
+	var isvalidCert bool
+	var err error
+
+	block, _ := pem.Decode(certificate)
+	if block == nil {
+		certificates, err = x509.ParseCertificates(certificate)
+		if err != nil {
+			log.Fatal("Certificate Parse failed")
+			return nil, errors.New("DER Certificate Parse failed")
+		} else {
+			isvalidCert = ValidateCert(certificates[0])
+			if !isvalidCert {
+				log.Fatal("Certificate expired")
+				return nil, errors.New("Certificate expired")
+			}
+		}
+	} else {
+		certificates, err = x509.ParseCertificates(block.Bytes)
+		if err != nil {
+			log.Fatal("PEM Certificatre Parse failed")
+			return nil, errors.New("PEM  Certificate Parse failed")
+		} else {
+			isvalidCert = ValidateCert(certificates[0])
+			if !isvalidCert {
+				log.Fatal("Certificate expired")
+				return nil, errors.New("Certificate expired")
+			}
+		}
+	}
+	return certificates[0], nil
+
+}
+
+//GetCeritificateSerialNumber returns serial number for Certificate byte
+//return -1 , if there is problem with the cert
+func GetCeritificateSerialNumber(certificatebyte []byte) (*big.Int, error) {
+	certificate, error := GetCertificate(certificatebyte)
+	if error != nil {
+		log.Error("Not a valid Certificate")
+		return big.NewInt(-1), error
+	}
+	return certificate.SerialNumber, nil
 }

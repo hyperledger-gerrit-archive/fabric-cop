@@ -348,7 +348,7 @@ func CreateTables(DBdriver string, dataSrouce string) (*sqlx.DB, error) {
 		return nil, err
 	}
 
-	if _, err := db.Exec("CREATE TABLE IF NOT EXISTS Users (id VARCHAR(64), enrollmentId VARCHAR(100), token BLOB, type VARCHAR(64), metadata VARCHAR(256), state INTEGER, key BLOB)"); err != nil {
+	if _, err := db.Exec("CREATE TABLE IF NOT EXISTS Users (id VARCHAR(64), enrollmentId VARCHAR(100), token BLOB, type VARCHAR(64), metadata VARCHAR(256), state INTEGER, key BLOB, serial_number bytea NOT NULL)"); err != nil {
 		return nil, err
 	}
 

@@ -196,6 +196,20 @@ func TestWriteFile(t *testing.T) {
 	os.Remove("../testdata/test.txt")
 }
 
+func TestFileExist(t *testing.T) {
+	check := FileExists("../testdata/cop.json")
+	if check != true {
+		t.Error("../testdata/cop.json exists, should not have returned false")
+	}
+}
+
+func TestFileNoExist(t *testing.T) {
+	check := FileExists("../testdata/bogus.json")
+	if check != false {
+		t.Error("../testdata/bogus.json does not exist, should not have returned true")
+	}
+}
+
 func getPath(file string) string {
 	return "../testdata/" + file
 }

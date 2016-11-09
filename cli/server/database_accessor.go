@@ -19,6 +19,7 @@ package server
 import (
 	"errors"
 
+	"github.com/cloudflare/cfssl/log"
 	cop "github.com/hyperledger/fabric-cop/api"
 
 	"github.com/jmoiron/sqlx"
@@ -33,8 +34,8 @@ func init() {
 
 const (
 	insertUser = `
-INSERT INTO Users (id, enrollmentId, token, type, metadata, state, key)
-	VALUES (:id, :enrollmentId, :token, :type, :metadata, :state, :key);`
+INSERT INTO Users (id, enrollmentId, token, type, metadata, state, key, serial_number)
+	VALUES (:id, :enrollmentId, :token, :type, :metadata, :state, :key, :serial_number);`
 
 	deleteUser = `
 DELETE FROM Users
@@ -42,7 +43,7 @@ DELETE FROM Users
 
 	updateUser = `
 UPDATE Users
-	SET token = :token, metadata = :metadata, state = :state
+	SET token = :token, metadata = :metadata, state = :state, serial_number = :serial_number
 	WHERE (id = :id);`
 
 	getUser = `
@@ -90,6 +91,7 @@ func (d *Accessor) SetDB(db *sqlx.DB) {
 }
 
 func (d *Accessor) InsertUser(user cop.UserRecord) error {
+	log.Debugf("DB: Inserting User: %+v", user)
 	err := d.checkDB()
 	if err != nil {
 		return err
@@ -103,6 +105,7 @@ func (d *Accessor) InsertUser(user cop.UserRecord) error {
 		Metadata:     user.Metadata,
 		State:        user.State,
 		Key:          user.Key,
+		SerialNumber: user.SerialNumber,
 	})
 
 	if err != nil {
@@ -144,10 +147,11 @@ func (d *Accessor) UpdateUser(user cop.UserRecord) error {
 	}
 
 	res, err := d.db.NamedExec(updateUser, &cop.UserRecord{
-		ID:       user.ID,
-		Token:    user.Token,
-		State:    user.State,
-		Metadata: user.Metadata,
+		ID:           user.ID,
+		Token:        user.Token,
+		State:        user.State,
+		Metadata:     user.Metadata,
+		SerialNumber: user.SerialNumber,
 	})
 
 	if err != nil {

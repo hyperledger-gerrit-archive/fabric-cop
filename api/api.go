@@ -201,6 +201,7 @@ type UserRecord struct {
 	Metadata     string `db:"metadata"`
 	State        int    `db:"state"`
 	Key          int    `db:"key"`
+	SerialNumber string `db:"serial_number"`
 }
 
 // Accessor abstracts the CRUD of certdb objects from a DB.
