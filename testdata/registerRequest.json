@@ -1,4 +1,6 @@
 {
-    "user": "user1",
-    "group": "group1"
+  "id": "test_user",
+  "type": "client",
+  "group": "bank_a",
+  "attrs": [{"name":"test","value":"testValue"}]
 }
