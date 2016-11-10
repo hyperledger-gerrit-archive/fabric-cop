@@ -30,10 +30,11 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"errors"
-	"github.com/cloudflare/cfssl/log"
 	"math/big"
 	"net"
 	"time"
+
+	"github.com/cloudflare/cfssl/log"
 )
 
 //GenNumber generates random numbers of type *big.Int with fixed length

@@ -17,18 +17,15 @@ limitations under the License.
 package util
 
 import (
-
-	"time"
-	"os"
-	"math/big"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"io/ioutil"
+	"math/big"
+	"os"
+	"time"
 
 	"github.com/cloudflare/cfssl/log"
 	"github.com/stretchr/stew/objects"
-
-
 )
 
 //ReadJSONAsMapFile reads the keyvalue from file system
@@ -59,14 +56,12 @@ func GetAttributes(jsonString string) map[string]string {
 		return nil
 	}
 	jsonMap, _ := objects.NewMapFromJSON(jsonString)
-	stringLocator := "TCertSetRequest.AttributeSet"
+	stringLocator := "TCertBatchRequest.AttributeSet"
 	var keyValue = jsonMap.Get(stringLocator)
 	valueMap := make(map[string]string)
-	for i, e := range keyValue.([]interface{}) {
+	for i := range keyValue.([]interface{}) {
 		arribute := keyValue.([]interface{})[i]
-		if e != nil {
-			log.Fatal("Problem in parsing JSON")
-		}
+
 		attributeName := arribute.(map[string]interface{})["AttributeName"].(string)
 		attributeValue := arribute.(map[string]interface{})["AttributeValue"].(string)
 		valueMap[attributeName] = attributeValue
@@ -78,41 +73,40 @@ func GetAttributes(jsonString string) map[string]string {
 
 /**
 *  Read Certificate Request from JSON file
-*/
+ */
 
-func parseCertificateRequest(jsonstring string , serialNumber *big.Int , pub interface{} , usage x509.KeyUsage , opt []pkix.Extension) (*CertificateSpec) {
+func parseCertificateRequest(jsonstring string, serialNumber *big.Int, pub interface{}, usage x509.KeyUsage, opt []pkix.Extension) *CertificateSpec {
 
+	stringLocator := "TCertBatchRequest.CerificateRequestData"
+	jsonMap, _ := objects.NewMapFromJSON(jsonstring)
 
-		 stringLocator := "TCertBatchRequest.CerificateRequestData"
-		 jsonMap , _ := objects.NewMapFromJSON(jsonstring)
+	//Validity Period is in the units of hours
+	certSpec := new(CertificateSpec)
+	certSpec.commonName = jsonMap.Get(stringLocator + ".CN").(string)
 
-		 //Validity Period is in the units of hours
-		 certSpec := new(CertificateSpec)
-		 certSpec.commonName = jsonMap.Get(stringLocator+".CN").(string)
+	certSpec.country = jsonMap.Get(stringLocator + ".C").(string)
+	certSpec.State = jsonMap.Get(stringLocator + ".ST").(string)
+	certSpec.locality = jsonMap.Get(stringLocator + ".L").(string)
+	certSpec.Organization = jsonMap.Get(stringLocator + ".O").(string)
+	certSpec.OrganizationUnit = jsonMap.Get(stringLocator + ".OU").(string)
+	validityPeriod := jsonMap.Get(stringLocator + ".validityPeriod").(float64)
+	certSpec.certificateType = jsonMap.Get("TCertBatchRequest.CertificateType").(float64)
+	NotBefore := time.Now()
+	NotAfter := NotBefore.Add(time.Duration(validityPeriod) * time.Hour)
+	certSpec.NotBefore = NotBefore
+	certSpec.NotAfter = NotAfter
 
-		 certSpec.country = jsonMap.Get(stringLocator+".C").(string)
-		 certSpec.State = jsonMap.Get(stringLocator+".ST").(string)
-		 certSpec.locality = jsonMap.Get(stringLocator+".L").(string)
-		 certSpec.Organization = jsonMap.Get(stringLocator+".O").(string)
-		 certSpec.OrganizationUnit = jsonMap.Get(stringLocator+".OU").(string)
-		 validityPeriod := jsonMap.Get(stringLocator+".validityPeriod").(float64)
-		 certSpec.certificateType = jsonMap.Get("TCertBatchRequest.CertificateType").(float64)
-		 NotBefore := time.Now()
-		 NotAfter := NotBefore.Add(time.Duration(validityPeriod)*time.Hour)
-		 certSpec.NotBefore = NotBefore
-		 certSpec.NotAfter = NotAfter
+	certSpec.serialNumber = serialNumber
+	certSpec.pub = pub
+	certSpec.usage = usage
+	certSpec.ext = &opt
 
-		certSpec.serialNumber = serialNumber
-		certSpec.pub = pub
-		certSpec.usage = usage
-		certSpec.ext = &opt
-
-		 return certSpec
+	return certSpec
 }
 
 //isAttributeEncryptionEnabled Gets encryption bool flag
-func isAttributeEncryptionEnabled(jsonstring string)bool {
-	jsonMap , _ := objects.NewMapFromJSON(jsonstring)
+func isAttributeEncryptionEnabled(jsonstring string) bool {
+	jsonMap, _ := objects.NewMapFromJSON(jsonstring)
 	areAttributesEnctypted := jsonMap.Get("TCertBatchRequest.attribute-encryption_enabled").(bool)
 	return areAttributesEnctypted
 }
@@ -128,10 +122,11 @@ func ConvertJSONFileToJSONString(jsonFileLocation string) string {
 }
 
 //WriteJSONAsMapToFile reads JSON String from File and Updates it with value
-func WriteJSONAsMapToFile(stringLocator string, value string, filePath string) {
+func WriteJSONAsMapToFile(stringLocator string, value string, filePath string) error {
 	buff, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		log.Fatal("Error reading file from given path:", err)
+		return err
 	}
 	var jsonString = string(buff)
 	jsonMap, _ := objects.NewMapFromJSON(jsonString)
@@ -148,7 +143,9 @@ func WriteJSONAsMapToFile(stringLocator string, value string, filePath string) {
 	jsonString, _ = jsonMap.JSON()
 	if _, err = f.WriteString(jsonString); err != nil {
 		log.Fatal("Error writing json string:", err)
+		return err
 	}
+	return nil
 }
 
 //WriteJSONAsMapToString writes a json map to a json string

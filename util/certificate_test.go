@@ -25,7 +25,6 @@ import (
 	"io/ioutil"
 	"math/big"
 	"testing"
-	
 )
 
 const (
