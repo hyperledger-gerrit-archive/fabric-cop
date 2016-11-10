@@ -30,6 +30,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// Admin struct
 type Admin struct {
 	User       string
 	Pass       []byte
