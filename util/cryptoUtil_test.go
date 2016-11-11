@@ -17,6 +17,7 @@ limitations under the License.
 package util
 
 import (
+	"fmt"
 	"io/ioutil"
 	"math/big"
 	"testing"
@@ -131,4 +132,16 @@ func TestGenNumber(t *testing.T) {
 	var numlen int64
 	numlen = 20
 	GenNumber(big.NewInt(numlen))
+}
+
+func TestSerialNumber(t *testing.T) {
+	publicKeyBuff, err := ioutil.ReadFile("../testdata/ec.pem")
+	if err != nil {
+		t.Fatalf("Cannot read EC Certificate from file system")
+	}
+	serialNumber, err := GetCeritificateSerialNumber(publicKeyBuff)
+	if err != nil {
+		t.Fatalf("Cannot create EC Certificate, err: %s", err)
+	}
+	fmt.Printf("Serial Numner = %d", serialNumber)
 }

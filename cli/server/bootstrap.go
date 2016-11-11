@@ -55,6 +55,8 @@ func (b *Bootstrap) PopulateUsersTable() error {
 		pass := info.Pass
 
 		reg := NewRegisterUser()
+		reg.DB = b.db
+		reg.DbAccessor = b.dbAccessor
 		reg.RegisterUser(id, userType, group, metadata, registrar, pass)
 	}
 	return nil
@@ -102,7 +104,7 @@ func (b *Bootstrap) PopulateGroupsTable() {
 
 func registerGroup(name string, parentName string, db *sqlx.DB) error {
 	mutex.Lock()
-	defer mutex.Unlock()
+	// defer mutex.Unlock()
 
 	log.Debug("Registering affiliation group " + name + " parent " + parentName + ".")
 
@@ -121,6 +123,7 @@ func registerGroup(name string, parentName string, db *sqlx.DB) error {
 		log.Error(err)
 	}
 
+	mutex.Unlock()
 	return err
 
 }

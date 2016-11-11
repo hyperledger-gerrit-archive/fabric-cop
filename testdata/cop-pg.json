@@ -1,0 +1,1 @@
+{"driver":"postgres","data_source":"host=localhost user=saadkarim dbname=eca sslmode=disable"}

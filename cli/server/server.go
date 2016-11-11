@@ -24,6 +24,7 @@ import (
 	"github.com/cloudflare/cfssl/cli"
 	"github.com/cloudflare/cfssl/cli/serve"
 	"github.com/cloudflare/cfssl/log"
+	cop "github.com/hyperledger/fabric-cop/api"
 	"github.com/hyperledger/fabric-cop/util"
 	"github.com/jmoiron/sqlx"
 )
@@ -99,17 +100,17 @@ func (s *Server) CreateHome() (string, error) {
 }
 
 // ConfigureDB creates Database and Tables if they don't exist
-func (s *Server) ConfigureDB(dataSource string, cfg *Config) error {
-	log.Debug("Configure DB")
-	db, err := util.CreateTables(cfg.DBdriver, dataSource)
-	if err != nil {
-		return err
-	}
-
-	s.BootstrapDB(db, cfg)
-
-	return nil
-}
+// func (s *Server) ConfigureDB(dataSource string, cfg *Config) error {
+// 	log.Debug("Configure DB")
+// 	db, err := util.CreateDatabase(cfg.DBdriver, dataSource)
+// 	if err != nil {
+// 		return err
+// 	}
+//
+// 	s.BootstrapDB(db, cfg)
+//
+// 	return nil
+// }
 
 // BootstrapDB loads the database based on config file
 func (s *Server) BootstrapDB(db *sqlx.DB, cfg *Config) error {
@@ -117,6 +118,76 @@ func (s *Server) BootstrapDB(db *sqlx.DB, cfg *Config) error {
 	b := BootstrapDB(db, cfg)
 	b.PopulateGroupsTable()
 	b.PopulateUsersTable()
+
+	return nil
+}
+
+func (s *Server) checkForDB(cfg *Config) error {
+	log.Debug("Check if database exists")
+	var err error
+
+	switch cfg.DBdriver {
+	case "sqlite3":
+		err = s.createSQLiteDB(cfg)
+	case "postgres":
+		err = s.createPostgres(cfg)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Server) createSQLiteDB(cfg *Config) error {
+	log.Debugf("Using sqlite database, looking for database in home (%s) directory", cfg.Home)
+	dataSource := filepath.Join(cfg.Home, cfg.DataSource)
+
+	if dataSource != "" {
+		// Check if database exists if not create it and bootstrap it based on the config file
+		if _, err := os.Stat(dataSource); err != nil {
+			if os.IsNotExist(err) {
+				log.Debug("Database not found")
+				db, err := util.CreateSQLiteDB(dataSource)
+				if err != nil {
+					return err
+				}
+				s.BootstrapDB(db, cfg)
+			}
+		}
+	}
+	return nil
+}
+
+func (s *Server) createPostgres(cfg *Config) error {
+	log.Debugf("Using postgres database, looking for database...")
+
+	dbName := util.GetDBName(cfg.DataSource)
+	log.Debug("Database Name: ", dbName)
+
+	connStr := util.GetConnStr(cfg.DataSource)
+
+	db, err := util.GetDB("postgres", connStr)
+	if err != nil {
+		return cop.WrapError(err, cop.DatabaseError, "Failed to connect to database")
+	}
+
+	// Check if database exists
+	r, err := db.Exec("SELECT * FROM pg_catalog.pg_database where datname=$1", dbName)
+	if err != nil {
+		return cop.WrapError(err, cop.DatabaseError, "Failed to query 'pg_database' table")
+	}
+
+	found, _ := r.RowsAffected()
+	if found == 0 {
+		log.Debug("Database not found")
+		db, err = util.CreatePostgresDB(cfg.DataSource, dbName, db)
+		if err != nil {
+			return err
+		}
+		s.BootstrapDB(db, cfg)
+	}
 
 	return nil
 }
@@ -134,18 +205,11 @@ func startMain(args []string, c cli.Config) error {
 	configInit(&c)
 	cfg := CFG
 	cfg.Home = home
-	dataSource := filepath.Join(home, cfg.DataSource)
-	log.Debug("Datasource: ", dataSource)
-	if cfg.DataSource != "" {
-		// Check if database exists if not create it and bootstrap it based on the config file
-		if _, err := os.Stat(dataSource); err != nil {
-			if os.IsNotExist(err) {
-				err = s.ConfigureDB(dataSource, cfg)
-				if err != nil {
-					return err
-				}
-			}
-		}
+
+	err = s.checkForDB(cfg)
+	if err != nil {
+		log.Error("Failed to create database")
+		return err
 	}
 
 	return serve.Command.Main(args, c)

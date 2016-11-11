@@ -18,7 +18,9 @@ package server
 
 import (
 	"errors"
+	"fmt"
 
+	"github.com/cloudflare/cfssl/log"
 	cop "github.com/hyperledger/fabric-cop/api"
 
 	"github.com/jmoiron/sqlx"
@@ -33,33 +35,29 @@ func init() {
 
 const (
 	insertUser = `
-INSERT INTO Users (id, enrollmentId, token, type, metadata, state, key)
-	VALUES (:id, :enrollmentId, :token, :type, :metadata, :state, :key);`
+INSERT INTO users (id, enrollment_id, token, type, metadata, state, key, serial_number)
+	VALUES (:id, :enrollment_id, :token, :type, :metadata, :state, :key, :serial_number);`
 
 	deleteUser = `
-DELETE FROM Users
+DELETE FROM users
 	WHERE (id = ?);`
 
 	updateUser = `
-UPDATE Users
-	SET token = :token, metadata = :metadata, state = :state
+UPDATE users
+	SET token = :token, metadata = :metadata, state = :state, serial_number = :serial_number
 	WHERE (id = :id);`
 
 	getUser = `
-SELECT * FROM Users
+SELECT * FROM users
 	WHERE (id = ?)`
 
-	insertGroup = `
-INSERT INTO Groups (name, parentID)
-	VALUES ($1, $2)`
+	insertGroup = `INSERT INTO groups (name, parent_id) VALUES (?, ?)`
 
 	deleteGroup = `
-DELETE FROM Groups
+DELETE FROM groups
 	WHERE (name = ?)`
 
-	getGroup = `
-SELECT * FROM Groups
-	WHERE (name = ?)`
+	getGroup = `SELECT * FROM groups WHERE (name = ?)`
 )
 
 // Accessor implements db.Accessor interface.
@@ -69,7 +67,7 @@ type Accessor struct {
 
 type Group struct {
 	Name     string `db:"name"`
-	ParentID string `db:"parentID"`
+	ParentID string `db:"parent_id"`
 }
 
 func (d *Accessor) checkDB() error {
@@ -90,6 +88,7 @@ func (d *Accessor) SetDB(db *sqlx.DB) {
 }
 
 func (d *Accessor) InsertUser(user cop.UserRecord) error {
+	log.Debugf("DB: Inserting user (%s)...", user.ID)
 	err := d.checkDB()
 	if err != nil {
 		return err
@@ -103,9 +102,11 @@ func (d *Accessor) InsertUser(user cop.UserRecord) error {
 		Metadata:     user.Metadata,
 		State:        user.State,
 		Key:          user.Key,
+		SerialNumber: user.SerialNumber,
 	})
 
 	if err != nil {
+		log.Error("Failed to insert user, error: ", err)
 		return err
 	}
 
@@ -144,10 +145,11 @@ func (d *Accessor) UpdateUser(user cop.UserRecord) error {
 	}
 
 	res, err := d.db.NamedExec(updateUser, &cop.UserRecord{
-		ID:       user.ID,
-		Token:    user.Token,
-		State:    user.State,
-		Metadata: user.Metadata,
+		ID:           user.ID,
+		Token:        user.Token,
+		State:        user.State,
+		Metadata:     user.Metadata,
+		SerialNumber: user.SerialNumber,
 	})
 
 	if err != nil {
@@ -177,6 +179,7 @@ func (d *Accessor) GetUser(id string) (cop.UserRecord, error) {
 
 	err = d.db.Get(&User, d.db.Rebind(getUser), id)
 	if err != nil {
+		log.Debugf("User (%s), error: %s", id, err)
 		return User, err
 	}
 
@@ -188,7 +191,9 @@ func (d *Accessor) InsertGroup(name string, parentID string) error {
 	if err != nil {
 		return err
 	}
-	_, err = d.db.Exec(insertGroup, name, parentID)
+
+	log.Debugf("DB - Query: %s, args: %s, %s", fmt.Sprint(d.db.Rebind(insertGroup)), name, parentID)
+	_, err = d.db.Exec(d.db.Rebind(insertGroup), name, parentID)
 	if err != nil {
 		return err
 	}
@@ -217,6 +222,8 @@ func (d *Accessor) GetGroup(name string) (string, string, error) {
 	}
 
 	group := Group{}
+
+	log.Debugf("DB - Query: %s, args: %s", fmt.Sprint(d.db.Rebind(getGroup)), name)
 	err = d.db.Get(&group, d.db.Rebind(getGroup), name)
 	if err != nil {
 		return "", "", err

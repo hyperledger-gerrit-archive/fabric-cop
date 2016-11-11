@@ -19,6 +19,7 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
@@ -93,7 +94,10 @@ func NewRegisterUser() *Register {
 	r := new(Register)
 	cfg := CFG
 	home := cfg.Home
-	dataSource := filepath.Join(home, cfg.DataSource)
+	dataSource := cfg.DataSource
+	if cfg.DBdriver == "sqlite3" {
+		dataSource = filepath.Join(home, cfg.DataSource)
+	}
 	r.DB, _ = util.GetDB(cfg.DBdriver, dataSource)
 	r.DbAccessor = NewDBAccessor()
 	r.DbAccessor.SetDB(r.DB)
@@ -197,16 +201,28 @@ func (r *Register) registerUserWithEnrollID(id string, enrollID string, userType
 		State:        0,
 	}
 
-	_, err := r.DbAccessor.GetUser(id)
-	if err == nil {
-		log.Error("User is already registered")
+	record, err := r.DbAccessor.GetUser(id)
+	if err != nil {
+		if err.Error() != "sql: no rows in result set" {
+			msg := fmt.Sprintf("Error occured during check to see if user exists, error: %s", err)
+			log.Error(msg)
+			return "", cop.NewError(cop.DatabaseError, msg)
+		}
+	}
+
+	if record.ID == id {
+		msg := fmt.Sprintf("User (%s) already registered", id)
+		log.Debug(msg)
 		return "", errors.New("User is already registered")
 	}
+
+	log.Debugf("Insert new user (%s) into database", id)
 	err = r.DbAccessor.InsertUser(insert)
 	if err != nil {
 		return "", err
 	}
 
+	log.Debug("User inserted into database")
 	return tok, nil
 }
 
@@ -216,7 +232,8 @@ func (r *Register) isValidGroup(group string) (bool, error) {
 
 	_, _, err := r.DbAccessor.GetGroup(group)
 	if err != nil {
-		return false, nil
+		log.Error("Failed to get user's group, error: ", err)
+		return false, err
 	}
 
 	return true, nil

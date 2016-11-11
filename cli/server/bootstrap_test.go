@@ -48,7 +48,7 @@ func prepBootstrap() *Bootstrap {
 	bootCFG = CFG
 	bootCFG.Home = bootPath
 	dataSource := filepath.Join(bootCFG.Home, bootCFG.DataSource)
-	db, _ := util.CreateTables(bootCFG.DBdriver, dataSource)
+	db, _ := util.CreateDatabase(bootCFG.DBdriver, dataSource)
 	b := BootstrapDB(db, bootCFG)
 	return b
 }

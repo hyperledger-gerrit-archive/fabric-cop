@@ -128,10 +128,10 @@ func TestRemoveQuotesNone(t *testing.T) {
 	}
 }
 
-func TestCreateTables(t *testing.T) {
+func TestCreateDatabase(t *testing.T) {
 	dbDriver := "sqlite3"
 	datasource := "../testdata/test.db"
-	_, err := CreateTables(dbDriver, datasource)
+	_, err := CreateDatabase(dbDriver, datasource)
 	if err != nil {
 		t.Error("Failed to create tables, error: ", err)
 	}
@@ -194,6 +194,20 @@ func TestWriteFile(t *testing.T) {
 		t.Error("Failed to write file, error: ", err)
 	}
 	os.Remove("../testdata/test.txt")
+}
+
+func TestFileExist(t *testing.T) {
+	check := FileExists("../testdata/cop.json")
+	if check != true {
+		t.Error("../testdata/cop.json exists, should not have returned false")
+	}
+}
+
+func TestFileNoExist(t *testing.T) {
+	check := FileExists("../testdata/bogus.json")
+	if check != false {
+		t.Error("../testdata/bogus.json does not exist, should not have returned true")
+	}
 }
 
 func getPath(file string) string {

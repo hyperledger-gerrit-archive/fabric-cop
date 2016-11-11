@@ -19,6 +19,7 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -70,7 +71,7 @@ func prepRegister() {
 	regCFG := CFG
 	regCFG.Home = regPath
 	dataSource := filepath.Join(regCFG.Home, regCFG.DataSource)
-	db, _ := util.CreateTables(regCFG.DBdriver, dataSource)
+	db, _ := util.CreateDatabase(regCFG.DBdriver, dataSource)
 	bootstrap(db, regCFG)
 }
 
@@ -132,20 +133,31 @@ func TestAll_Register(t *testing.T) {
 
 func testRegisterUser(t *testing.T) {
 	_, err := registerUser(Registrar, &testUser)
+	// fmt.Println("test - err.Error(): ", err.Error())
+
 	if err != nil {
-		t.Fatal(err.Error())
+		if err.Error() != "sql: no rows in result set" {
+			t.Log("test here")
+			t.Error(err.Error())
+		}
 	}
 }
 
 func testRegisterDuplicateUser(t *testing.T) {
+	fmt.Println("testRegisterDuplicateUser")
 	_, err := registerUser(Registrar, &testUser)
-
+	fmt.Println("i am here")
 	if err == nil {
-		t.Fatal("Expected an error when registering the same user twice")
+		t.Error("Expected an error when registering the same user twice")
 	}
 
-	if err.Error() != "User is already registered" {
-		t.Fatalf("Expected error was not returned when registering user twice: [%s]", err.Error())
+	if err != nil {
+		fmt.Println("here123")
+		fmt.Println("err.Error() afadsfasdf: ", err.Error())
+		if err.Error() != "User is already registered" {
+			fmt.Println("here321")
+			t.Errorf("Expected error was not returned when registering user twice: [%s]", err.Error())
+		}
 	}
 }
 
@@ -154,7 +166,7 @@ func testRegisterAuditor(t *testing.T) {
 	_, err := registerUser(Registrar, &testAuditor)
 
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Error(err)
 	}
 }
 
@@ -164,7 +176,7 @@ func testRegisterUserNonRegistrar(t *testing.T) {
 	_, err := registerUser(NotRegistrar, &testUser)
 
 	if err == nil {
-		t.Fatal("User without registrar metadata should not be able to register a new user")
+		t.Error("User without registrar metadata should not be able to register a new user")
 	}
 	t.Logf("Expected an error and indeed received: [%s]", err.Error())
 }
@@ -174,7 +186,7 @@ func testRegisterUserPeer(t *testing.T) {
 	_, err := registerUser(Registrar, &testPeer)
 
 	if err == nil {
-		t.Fatal("User without appropriate delegateRoles should not be able to register a new user")
+		t.Error("User without appropriate delegateRoles should not be able to register a new user")
 	}
 	t.Logf("Expected an error and indeed received: [%s]", err.Error())
 }

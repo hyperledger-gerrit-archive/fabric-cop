@@ -18,6 +18,7 @@ package server
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
@@ -80,8 +81,13 @@ func NewEnrollUser() *Enroll {
 	e := new(Enroll)
 	e.cfg = CFG
 	home := e.cfg.Home
-	dataSource := filepath.Join(home, e.cfg.DataSource)
+	dataSource := e.cfg.DataSource
+	if e.cfg.DBdriver == "sqlite3" {
+		dataSource = filepath.Join(home, e.cfg.DataSource)
+	}
+	fmt.Println("enroll - datasource: ", dataSource)
 	e.DB, _ = util.GetDB(e.cfg.DBdriver, dataSource)
+	fmt.Println("e.DB: ", e.DB)
 	e.DbAccessor = NewDBAccessor()
 	e.DbAccessor.SetDB(e.DB)
 	return e
@@ -110,13 +116,21 @@ func (e *Enroll) Enroll(id string, token []byte, csrPEM []byte) ([]byte, cop.Err
 			return nil, signErr
 		}
 
+		serialNumber, err := util.GetCeritificateSerialNumber(cert)
+		if err != nil {
+			msg := fmt.Sprintf("Failed to get serial number, error: %s", err)
+			log.Error(msg)
+			return nil, cop.NewError(cop.EnrollingUserError, msg)
+		}
+
 		tok := util.RandomString(12)
 
 		updateState := cop.UserRecord{
-			ID:       user.ID,
-			Token:    tok,
-			Metadata: user.Metadata,
-			State:    1,
+			ID:           user.ID,
+			Token:        tok,
+			Metadata:     user.Metadata,
+			State:        1,
+			SerialNumber: serialNumber.String(),
 		}
 
 		err = e.DbAccessor.UpdateUser(updateState)

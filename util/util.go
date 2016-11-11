@@ -35,6 +35,7 @@ import (
 	mrand "math/rand"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -342,17 +343,36 @@ func StrContained(str string, strs []string) bool {
 }
 
 //CreateTables creates user, group, and certificate tables
-func CreateTables(DBdriver string, dataSrouce string) (*sqlx.DB, error) {
-	db, err := GetDB(DBdriver, dataSrouce)
+// func CreateDatabase(DBdriver string, dataSource string) (*sqlx.DB, error) {
+// 	switch DBdriver {
+// 	case "sqlite3":
+// 		db, err := SQLiteDB(dataSource)
+// 		if err != nil {
+// 			return nil, cop.WrapError(err, cop.DatabaseError, "Failed to create sqlite database")
+// 		}
+// 		return db, nil
+// 	case "postgres":
+// 		db, err := PostgresDB(dataSource)
+// 		if err != nil {
+// 			return nil, cop.WrapError(err, cop.DatabaseError, "Failed to create postgres database")
+// 		}
+// 		return db, nil
+// 	}
+// 	return nil, cop.NewError(cop.DatabaseError, "Failed to create database")
+// }
+
+func CreateSQLiteDB(dataSource string) (*sqlx.DB, error) {
+	log.Debug("Creating SQLite Database...")
+	db, err := GetDB("sqlite3", dataSource)
 	if err != nil {
+		return nil, cop.WrapError(err, cop.DatabaseError, "Failed to connect to database")
+	}
+
+	if _, err := db.Exec("CREATE TABLE IF NOT EXISTS users (id VARCHAR(64), enrollment_id VARCHAR(100), token BLOB, type VARCHAR(64), metadata VARCHAR(256), state INTEGER, key BLOB, serial_number bytea NOT NULL)"); err != nil {
 		return nil, err
 	}
 
-	if _, err := db.Exec("CREATE TABLE IF NOT EXISTS Users (id VARCHAR(64), enrollmentId VARCHAR(100), token BLOB, type VARCHAR(64), metadata VARCHAR(256), state INTEGER, key BLOB)"); err != nil {
-		return nil, err
-	}
-
-	if _, err := db.Exec("CREATE TABLE IF NOT EXISTS Groups (name VARCHAR(64), parentID VARCHAR(64))"); err != nil {
+	if _, err := db.Exec("CREATE TABLE IF NOT EXISTS groups (name VARCHAR(64), parent_id VARCHAR(64))"); err != nil {
 		return nil, err
 	}
 
@@ -361,6 +381,38 @@ func CreateTables(DBdriver string, dataSrouce string) (*sqlx.DB, error) {
 	}
 
 	return db, nil
+}
+
+func CreatePostgresDB(dataSource string, dbName string, db *sqlx.DB) (*sqlx.DB, error) {
+	log.Debugf("Creating Postgres Database (%s)...", dbName)
+
+	query := "CREATE DATABASE " + dbName
+	log.Debug("DB: Query - ", query)
+	_, err := db.Exec(query)
+	if err != nil {
+		return nil, cop.WrapError(err, cop.DatabaseError, "Failed to create Postgres database")
+	}
+
+	database, err := GetDB("postgres", dataSource)
+	if err != nil {
+		log.Errorf("Trying to connect to (%s) database", dbName)
+	}
+
+	log.Debug("Create Tables...")
+	// TODO: Set schema name, currently getting set to 'public'
+	if _, err := database.Exec("CREATE TABLE users (id VARCHAR(64), enrollment_id VARCHAR(100), token bytea, type VARCHAR(64), metadata VARCHAR(256), state INTEGER, key bytea, serial_number bytea NOT NULL)"); err != nil {
+		return nil, err
+	}
+
+	if _, err := database.Exec("CREATE TABLE groups (name VARCHAR(64), parent_id VARCHAR(64))"); err != nil {
+		return nil, err
+	}
+
+	if _, err := database.Exec("CREATE TABLE certificates (serial_number bytea NOT NULL, authority_key_identifier bytea NOT NULL, ca_label bytea, status bytea NOT NULL, reason int, expiry timestamp, revoked_at timestamp, pem bytea NOT NULL, PRIMARY KEY(serial_number, authority_key_identifier))"); err != nil {
+		return nil, err
+	}
+
+	return database, nil
 }
 
 // HTTPRequestToString returns a string for an HTTP request for debuggging
@@ -383,4 +435,22 @@ func GetDefaultHomeDir() string {
 		home = "/var/hyperledger/production/.cop"
 	}
 	return home
+}
+
+func GetDBName(dataSource string) string {
+	re := regexp.MustCompile(`(dbname=)([^\s]+)`)
+	getName := re.FindStringSubmatch(dataSource)
+	var dbName string
+
+	if getName != nil {
+		dbName = getName[2]
+	}
+
+	return dbName
+}
+
+func GetConnStr(dataSource string) string {
+	re := regexp.MustCompile(`(dbname=)([^\s]+)`)
+	connStr := re.ReplaceAllString(dataSource, "")
+	return connStr
 }
