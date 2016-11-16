@@ -45,3 +45,8 @@ func NewBadRequestMissingParameter(s string) *HTTPError {
 func NewBadRequestUnwantedParameter(s string) *HTTPError {
 	return NewBadRequestString(`Unwanted parameter "` + s + `"`)
 }
+
+// NewHTTPError returns a generic HTTP error
+func NewHTTPError(statusCode int, err error) *HTTPError {
+	return &HTTPError{statusCode, err}
+}
