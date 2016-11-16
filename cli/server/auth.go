@@ -19,11 +19,11 @@ package server
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 
 	"github.com/cloudflare/cfssl/api"
+	cerr "github.com/cloudflare/cfssl/errors"
 	"github.com/cloudflare/cfssl/log"
 	"github.com/hyperledger/fabric-cop/util"
 )
@@ -38,6 +38,8 @@ type copAuthHandler struct {
 	token bool
 	next  http.Handler
 }
+
+var authError = cerr.NewHTTPError(401, errors.New("authorization failure"))
 
 // NewAuthWrapper is auth wrapper constructor
 // Only the "sign" and "enroll" URIs use basic auth for the enrollment secret
@@ -91,23 +93,26 @@ func (ah *copAuthHandler) serveHTTP(w http.ResponseWriter, r *http.Request) erro
 	authHdr := r.Header.Get("authorization")
 	if authHdr == "" {
 		log.Debug("no authorization header")
-		return errNoAuthHdr
+		return authError
 	}
 	user, pwd, ok := r.BasicAuth()
 	if ok {
 		if !ah.basic {
 			log.Debugf("basic auth is not allowed; found %s", authHdr)
-			return errBasicAuthNotAllowed
+			return authError
 		}
 		if cfg.Users == nil {
-			return invalidUserPassErr("user '%s' not found: no users", user)
+			log.Debug("no users are defined")
+			return authError
 		}
 		user := cfg.Users[user]
 		if user == nil {
-			return invalidUserPassErr("user '%s' not found", user)
+			log.Debug("user not found")
+			return authError
 		}
 		if user.Pass != pwd {
-			return invalidUserPassErr("incorrect password for '%s'; received %s but expected %s", user, pwd, user.Pass)
+			log.Debug("invalid password")
+			return authError
 		}
 		log.Debug("user/pass was correct")
 		// TODO: Do the following
@@ -120,22 +125,16 @@ func (ah *copAuthHandler) serveHTTP(w http.ResponseWriter, r *http.Request) erro
 		body, err := ioutil.ReadAll(r.Body)
 		r.Body = ioutil.NopCloser(bytes.NewReader(body))
 		if err != nil {
-			return err
+			return authError
 		}
-		return util.VerifyToken(authHdr, body)
+		err2 := util.VerifyToken(authHdr, body)
+		if err2 != nil {
+			return authError
+		}
 	}
 	return nil
 }
 
 func wrappedPath(path string) string {
 	return "/api/v1/cfssl/" + path
-}
-
-func invalidUserPassErr(format string, args ...interface{}) error {
-	msg := fmt.Sprintf(format, args)
-	log.Debug(msg)
-	if debug {
-		return errors.New(msg)
-	}
-	return errInvalidUserPass
 }

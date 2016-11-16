@@ -17,6 +17,7 @@ limitations under the License.
 package client
 
 import (
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
 
@@ -101,11 +102,14 @@ func enrollMain(args []string, c cli.Config) error {
 	if err != nil {
 		return err
 	}
-	home := util.GetDefaultHomeDir()
-	err = util.WriteFile(home+"/client.json", idByte, 0644)
+
+	clientFile := util.GetDefaultHomeDir() + "/client.json"
+	err = util.WriteFile(clientFile, idByte, 0644)
 	if err != nil {
 		return err
 	}
+
+	fmt.Printf("Enrollment information was successfully stored in %s\n", clientFile)
 
 	return nil
 }

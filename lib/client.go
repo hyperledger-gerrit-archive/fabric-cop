@@ -194,12 +194,19 @@ func (c *Client) sendPost(req *http.Request) (respBody []byte, err error) {
 	if err != nil {
 		msg := fmt.Sprintf("failed to read response: %v", err)
 		log.Debug(msg)
-		return respBody, cop.NewError(cop.CFSSL, msg)
+		return nil, cop.NewError(cop.CFSSL, msg)
 	}
 	if resp.StatusCode != http.StatusOK {
-		msg := fmt.Sprintf("http error code %d", resp.StatusCode)
-		log.Debug(msg)
-		return respBody, cop.NewError(cop.CFSSL, msg)
+		body := new(api.Response)
+		err = json.Unmarshal(respBody, body)
+		if err == nil && len(body.Errors) > 0 {
+			berr := body.Errors[0]
+			err = errors.New(berr.Message)
+		} else {
+			err = cop.NewError(cop.CFSSL, string(respBody))
+		}
+		log.Debugf("server error: %s", err)
+		return nil, err
 	}
 	return respBody, nil
 }
