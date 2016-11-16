@@ -18,15 +18,11 @@ package client
 
 import (
 	"fmt"
-	"io/ioutil"
-	"path/filepath"
 
 	"github.com/cloudflare/cfssl/cli"
-	"github.com/cloudflare/cfssl/csr"
 	"github.com/cloudflare/cfssl/log"
 
 	"github.com/hyperledger/fabric-cop/idp"
-	"github.com/hyperledger/fabric-cop/util"
 )
 
 var enrollUsageText = `cop client enroll -- Enroll with COP server
@@ -39,7 +35,7 @@ Arguments:
         ID:               Enrollment ID
         SECRET:           Enrollment secret returned by register
         COP-SERVER-ADDR:  COP server address
-		  CSRJSON:          Certificate Signing Request JSON information (Optional)
+	CSRJSON:          Certificate Signing Request JSON information (Optional)
 
 Flags:
 `
@@ -69,47 +65,34 @@ func enrollMain(args []string, c cli.Config) error {
 		Secret: secret,
 	}
 
-	if len(args) > 0 {
-		if filepath.Ext(args[0]) == ".json" {
-			csrJSON, _, err2 := cli.PopFirstArgument(args)
-			if err2 != nil {
-				return err2
-			}
-			csrJSONBytes, err2 := ioutil.ReadFile(csrJSON)
-			if err2 != nil {
-				return err2
-			}
-
-			var CertRequest csr.CertificateRequest
-			util.Unmarshal(csrJSONBytes, &CertRequest, "Certificate request")
-			req.CR = &CertRequest
-		}
-		log.Debug("Other argument besides optional csr provided")
-	}
-
-	_ = args
-
 	client, err := NewClient(copServer)
 	if err != nil {
 		return err
 	}
+
+	// Read the CSR JSON file if provided
+	if len(args) > 0 {
+		path, _, err2 := cli.PopFirstArgument(args)
+		if err2 != nil {
+			return err2
+		}
+		req.CSR, err2 = client.LoadCSRInfo(path)
+		if err2 != nil {
+			return err2
+		}
+	}
+
 	ID, err := client.Enroll(req)
 	if err != nil {
 		return err
 	}
 
-	idByte, err := ID.Serialize()
+	err = ID.Store()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to store enrollment information: %s", err)
 	}
 
-	clientFile := util.GetDefaultHomeDir() + "/client.json"
-	err = util.WriteFile(clientFile, idByte, 0644)
-	if err != nil {
-		return fmt.Errorf("Failed to store enrollment information: %s", err)
-	}
-
-	fmt.Printf("Enrollment information was successfully stored in %s\n", clientFile)
+	log.Infof("enrollment information was successfully stored in %s", client.GetMyIdentityFile())
 
 	return nil
 }
