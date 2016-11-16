@@ -17,8 +17,6 @@ limitations under the License.
 package server
 
 import (
-	"bytes"
-	"errors"
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
@@ -26,7 +24,6 @@ import (
 	"github.com/cloudflare/cfssl/api"
 	"github.com/cloudflare/cfssl/cli"
 	"github.com/cloudflare/cfssl/cli/sign"
-	cerr "github.com/cloudflare/cfssl/errors"
 	"github.com/cloudflare/cfssl/log"
 	"github.com/cloudflare/cfssl/signer"
 	cop "github.com/hyperledger/fabric-cop/api"
@@ -34,118 +31,85 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// enrollHandler for register requests
-type enrollHandler struct {
+// reenrollHandler for register requests
+type reenrollHandler struct {
 }
 
-// NewEnrollHandler is constructor for register handler
-func NewEnrollHandler() (h http.Handler, err error) {
+// NewReenrollHandler is constructor for register handler
+func NewReenrollHandler() (h http.Handler, err error) {
 	// NewHandler is constructor for register handler
 	return &api.HTTPHandler{
-		Handler: &enrollHandler{},
+		Handler: &reenrollHandler{},
 		Methods: []string{"POST"},
 	}, nil
 }
 
 // Handle a enroll request
-func (h *enrollHandler) Handle(w http.ResponseWriter, r *http.Request) error {
-	log.Debug("enroll request received")
+func (h *reenrollHandler) Handle(w http.ResponseWriter, r *http.Request) error {
+	log.Debug("reenroll request received")
+
+	authHdr := r.Header.Get("authorization")
+	if authHdr == "" {
+		log.Debug("no authorization header")
+		return errNoAuthHdr
+	}
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		log.Errorf("failed to read body: %s", err)
-		return cerr.NewBadRequest(errors.New("failed to read request body"))
+		return err
 	}
 	r.Body.Close()
 
-	user, token, ok := r.BasicAuth()
-	if !ok {
-		log.Error("No authorization header set")
-		return cerr.NewBadRequest(errors.New("missing authorization header"))
+	user, err := util.VerifyToken(authHdr, body)
+	if err != nil {
+		return err
 	}
 
-	enroll, err := NewEnrollUser()
+	reenroll := NewReenrollUser()
+	cert, err := reenroll.Enroll(user, body)
 	if err != nil {
-		return cerr.NewBadRequest(err)
-	}
-	cert, err := enroll.Enroll(user, []byte(token), body)
-	if err != nil {
-		return cerr.NewBadRequest(err)
+		return err
 	}
 
 	return api.SendResponse(w, cert)
 }
 
-// Enroll is for enrolling a user
-type Enroll struct {
+// Reenroll is for enrolling a user
+type Reenroll struct {
 	DB         *sqlx.DB
 	DbAccessor *Accessor
 	cfg        *Config
 }
 
-// NewEnrollUser returns an pointer to an allocated enroll struct, populated
-// with the DB information (that set in the config) or nil on error.
-func NewEnrollUser() (*Enroll, error) {
-	e := new(Enroll)
+// NewReenrollUser is a constructor
+func NewReenrollUser() *Reenroll {
+	e := new(Reenroll)
 	e.cfg = CFG
 	home := e.cfg.Home
 	dataSource := filepath.Join(home, e.cfg.DataSource)
-	db, err := util.GetDB(e.cfg.DBdriver, dataSource)
-	if err != nil {
-		return nil, err
-	}
-	e.DB = db
+	e.DB, _ = util.GetDB(e.cfg.DBdriver, dataSource)
 	e.DbAccessor = NewDBAccessor()
 	e.DbAccessor.SetDB(e.DB)
-	return e, nil
+	return e
 }
 
 // Enroll will enroll a user
-func (e *Enroll) Enroll(id string, token []byte, csrPEM []byte) ([]byte, cop.Error) {
-	log.Debugf("Received request to enroll user with id: %s\n", id)
+func (e *Reenroll) Enroll(id string, csrPEM []byte) ([]byte, cop.Error) {
+	log.Debugf("Received request to reenroll user with id: %s\n", id)
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	user, err := e.DbAccessor.GetUser(id)
+	_, err := e.DbAccessor.GetUser(id)
 	if err != nil {
 		log.Error("User not registered")
 		return nil, cop.WrapError(err, cop.EnrollingUserError, "User not registered")
 	}
 
-	if user.State == 0 {
-
-		if !bytes.Equal(token, []byte(user.Token)) {
-			log.Errorf("User name or password does not match: %s != %s", token, user.Token)
-			return nil, cop.NewError(cop.EnrollingUserError, "User name or password does not match")
-		}
-
-		cert, signErr := e.signKey(csrPEM)
-		if signErr != nil {
-			log.Errorf("Failed to sign CSR: %s", signErr)
-			return nil, signErr
-		}
-
-		updateState := cop.UserRecord{
-			ID:       user.ID,
-			Token:    "",
-			Metadata: user.Metadata,
-			State:    1,
-		}
-
-		err = e.DbAccessor.UpdateUser(updateState)
-		if err != nil {
-			return nil, cop.WrapError(err, cop.EnrollingUserError, "Failed to update user state")
-		}
-
-		log.Debugf("Successfully enrolled user %s\n", id)
-
-		return cert, nil
-	}
-	return nil, cop.NewError(cop.EnrollingUserError, "User was already enrolled")
+	return e.signKey(csrPEM)
 }
 
 // func (e *Enroll) signKey(csrPEM []byte, remoteHost string) ([]byte, cop.Error) {
-func (e *Enroll) signKey(csrPEM []byte) ([]byte, cop.Error) {
+func (e *Reenroll) signKey(csrPEM []byte) ([]byte, cop.Error) {
 	log.Debugf("signKey")
 	var cfg cli.Config
 	cfg.CAFile = e.cfg.CACert
