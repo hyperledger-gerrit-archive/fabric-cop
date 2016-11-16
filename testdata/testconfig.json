@@ -26,6 +26,12 @@
       "type": "client",
       "group": "bank_a",
       "attrs": []
+    },
+    "testUser3": {
+      "pass": "user3",
+      "type": "client",
+      "group": "bank_a",
+      "attrs": []
     }
  },
  "groups": {

@@ -1,5 +1,5 @@
 {
- "authentication": false,
+ "authentication": true,
  "users": {
     "admin": {
       "pass": "adminpw",
