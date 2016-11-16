@@ -1,5 +1,7 @@
 {
  "authentication": false,
+ "driver":"sqlite3",
+ "data_source":"cop.db",
  "users": {
     "admin": {
       "pass": "adminpw",

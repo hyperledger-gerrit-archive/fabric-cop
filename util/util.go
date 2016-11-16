@@ -342,18 +342,20 @@ func StrContained(str string, strs []string) bool {
 	return false
 }
 
-//CreateTables creates user, group, and certificate tables
-func CreateTables(DBdriver string, dataSrouce string) (*sqlx.DB, error) {
-	db, err := GetDB(DBdriver, dataSrouce)
+// CreateSQLiteDB creates sqlite database
+func CreateSQLiteDB(dataSource string) (*sqlx.DB, error) {
+	log.Debug("Creating SQLite Database...")
+	log.Debug("Database location: ", dataSource)
+	db, err := sqlx.Open("sqlite3", dataSource)
 	if err != nil {
+		return nil, cop.WrapError(err, cop.DatabaseError, "Failed to connect to database")
+	}
+
+	if _, err := db.Exec("CREATE TABLE IF NOT EXISTS users (id VARCHAR(64), enrollment_id VARCHAR(100), token BLOB, type VARCHAR(64), metadata VARCHAR(256), state INTEGER, serial_number bytea)"); err != nil {
 		return nil, err
 	}
 
-	if _, err := db.Exec("CREATE TABLE IF NOT EXISTS Users (id VARCHAR(64), enrollmentId VARCHAR(100), token BLOB, type VARCHAR(64), metadata VARCHAR(256), state INTEGER, key BLOB)"); err != nil {
-		return nil, err
-	}
-
-	if _, err := db.Exec("CREATE TABLE IF NOT EXISTS Groups (name VARCHAR(64), parentID VARCHAR(64))"); err != nil {
+	if _, err := db.Exec("CREATE TABLE IF NOT EXISTS groups (name VARCHAR(64), parent_id VARCHAR(64))"); err != nil {
 		return nil, err
 	}
 

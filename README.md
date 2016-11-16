@@ -2,7 +2,7 @@
 
 COP is the name for Membership Services in v1.0 of Hyperledger Fabric.  COP is not an acronym.  The name "COP" was selected because of the following.
 
-  * COP provides police-like security functionality for Hyperledger Fabric.  It is the "fabric COP"; 
+  * COP provides police-like security functionality for Hyperledger Fabric.  It is the "fabric COP";
   * COP is shorter and easier to say and write than “Membership Services v1.0” :-)
 
 See the [COP design doc](https://docs.google.com/document/d/1TRYHcaT8yMn8MZlDtreqzkDcXx0WI50AV2JpAcvAM5w) for information on what COP will provide.
@@ -22,7 +22,7 @@ This section describes what you can currently do with COP.
 
 The following shows how to download and build the cop executable (i.e. the 'cop' binary).
 Be sure to replace **YOUR-ID** appropriately.
-   
+
 ```
 # go get github.com/go-sql-driver/mysql
 # go get github.com/lib/pq
@@ -92,6 +92,24 @@ The following command gets an ecert for the admin user.
 # ./cop client enroll admin adminpw ../testdata/csr.json http://localhost:8888
 ```
 
+### Register a new user
+
+Create a JSON file as defined below for the user being registered.
+
+registerRequest.json:
+{
+  "id": "User1",
+  "type": "client",
+  "group": "bank_a",
+  "attrs": [{"name":"AttributeName","value":"AttributeValue"}]
+}
+
+The following command will register the user.
+```
+# cd $COP/bin
+# ./cop client register ../testdata/registerRequest.json http://localhost:8888
+```
+
 ### Run the cop tests
 
 To run the cop test, do the following.
@@ -102,6 +120,3 @@ WARNING: You must first stop the cop server which you started above; otherwise, 
 # cd $COP
 # make tests
 ```
-   
-   
-  

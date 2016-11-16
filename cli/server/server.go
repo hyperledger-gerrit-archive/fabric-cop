@@ -24,6 +24,7 @@ import (
 	"github.com/cloudflare/cfssl/cli"
 	"github.com/cloudflare/cfssl/cli/serve"
 	"github.com/cloudflare/cfssl/log"
+	cop "github.com/hyperledger/fabric-cop/api"
 	"github.com/hyperledger/fabric-cop/util"
 	"github.com/jmoiron/sqlx"
 )
@@ -101,23 +102,59 @@ func (s *Server) CreateHome() (string, error) {
 	return home, nil
 }
 
-// ConfigureDB creates Database and Tables if they don't exist
-func (s *Server) ConfigureDB(dataSource string, cfg *Config) error {
-	log.Debug("Configure DB")
-	db, err := util.CreateTables(cfg.DBdriver, dataSource)
-	if err != nil {
-		return err
+func (s *Server) checkForDB(cfg *Config) (*sqlx.DB, error) {
+	log.Debugf("Check if database exists: %s", cfg.DataSource)
+	var err error
+	var db *sqlx.DB
+
+	switch cfg.DBdriver {
+	case "sqlite3":
+		db, err = s.SQLiteDB(cfg)
+		// More cases to be added
+	default:
+		log.Error("Unsupported database driver")
+		return nil, cop.NewError(cop.DatabaseError, "Unsupported database driver")
 	}
 
-	s.BootstrapDB(db, cfg)
+	if err != nil {
+		return nil, err
+	}
 
-	return nil
+	return db, nil
+}
+
+// SQLiteDB checks if sqlite database exists
+func (s *Server) SQLiteDB(cfg *Config) (*sqlx.DB, error) {
+	log.Debugf("Using sqlite database, connect to database in home (%s) directory", cfg.Home)
+	dataSource := filepath.Join(cfg.Home, cfg.DataSource)
+	cfg.DataSource = dataSource
+
+	if dataSource != "" {
+		// Check if database exists if not create it and bootstrap it based on the config file
+		if _, err := os.Stat(dataSource); err != nil {
+			if os.IsNotExist(err) {
+				log.Debug("Database not found")
+				_, err := util.CreateSQLiteDB(dataSource)
+				if err != nil {
+					return nil, err
+				}
+
+			}
+		}
+	}
+
+	db, err := sqlx.Open("sqlite3", cfg.DataSource)
+	if err != nil {
+		return nil, err
+	}
+
+	return db, nil
 }
 
 // BootstrapDB loads the database based on config file
-func (s *Server) BootstrapDB(db *sqlx.DB, cfg *Config) error {
+func (s *Server) BootstrapDB(cfg *Config) error {
 	log.Debug("Bootstrap DB")
-	b := BootstrapDB(db, cfg)
+	b := BootstrapDB()
 	b.PopulateGroupsTable()
 	b.PopulateUsersTable()
 
@@ -137,19 +174,24 @@ func startMain(args []string, c cli.Config) error {
 	configInit(&c)
 	cfg := CFG
 	cfg.Home = home
-	dataSource := filepath.Join(home, cfg.DataSource)
-	log.Debug("Datasource: ", dataSource)
-	if cfg.DataSource != "" {
-		// Check if database exists if not create it and bootstrap it based on the config file
-		if _, err := os.Stat(dataSource); err != nil {
-			if os.IsNotExist(err) {
-				err = s.ConfigureDB(dataSource, cfg)
-				if err != nil {
-					return err
-				}
-			}
-		}
+
+	if cfg.DataSource == "" {
+		msg := "No database specified, a database is needed to run cop server"
+		log.Fatal(msg)
+		return cop.NewError(cop.DatabaseError, msg)
 	}
+
+	db, err := s.checkForDB(cfg)
+	if err != nil {
+		log.Error("Failed to get database")
+		return err
+	}
+
+	cfg.DB = db
+	cfg.DBAccessor = NewDBAccessor()
+	cfg.DBAccessor.SetDB(db)
+
+	s.BootstrapDB(cfg)
 
 	return serve.Command.Main(args, c)
 }
@@ -161,8 +203,7 @@ func Start(dir string) {
 	cert := filepath.Join(dir, "ec.pem")
 	key := filepath.Join(dir, "ec-key.pem")
 	config := filepath.Join(dir, "testconfig.json")
-	dbconfig := filepath.Join(dir, "cop-db.json")
-	os.Args = []string{"server", "start", "-ca", cert, "-ca-key", key, "-config", config, "-db-config", dbconfig}
+	os.Args = []string{"server", "start", "-ca", cert, "-ca-key", key, "-config", config}
 	Command()
 	os.Args = osArgs
 }

@@ -20,14 +20,11 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/cloudflare/cfssl/cli"
 	cop "github.com/hyperledger/fabric-cop/api"
 	"github.com/hyperledger/fabric-cop/idp"
-	"github.com/hyperledger/fabric-cop/util"
-	"github.com/jmoiron/sqlx"
 )
 
 type Admin struct {
@@ -63,19 +60,21 @@ func prepRegister() {
 	}
 
 	cfg := new(cli.Config)
-	// cfg.ConfigFile = "../../../testdata/registerRegistrar.json"
-	cfg.DBConfigFile = "../../testdata/registertest.json"
+	cfg.ConfigFile = "../../testdata/testconfig.json"
 	configInit(cfg)
 
 	regCFG := CFG
 	regCFG.Home = regPath
-	dataSource := filepath.Join(regCFG.Home, regCFG.DataSource)
-	db, _ := util.CreateTables(regCFG.DBdriver, dataSource)
-	bootstrap(db, regCFG)
+	s := new(Server)
+	db, _ := s.checkForDB(regCFG)
+	CFG.DB = db
+	CFG.DBAccessor = NewDBAccessor()
+	CFG.DBAccessor.SetDB(db)
+	bootstrap()
 }
 
-func bootstrap(db *sqlx.DB, cfg *Config) {
-	b := BootstrapDB(db, cfg)
+func bootstrap() {
+	b := BootstrapDB()
 	b.PopulateGroupsTable()
 	bootstrapUsers()
 }
