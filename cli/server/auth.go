@@ -101,12 +101,12 @@ func (ah *copAuthHandler) serveHTTP(w http.ResponseWriter, r *http.Request) erro
 			log.Debug("No users are defined")
 			return authError
 		}
-		user := cfg.Users[user]
-		if user == nil {
+		userRecord, _ := cfg.DBAccessor.GetUser(user)
+		if userRecord.ID == "" {
 			log.Debug("User not found")
 			return authError
 		}
-		if user.Pass != pwd {
+		if userRecord.Token != pwd {
 			log.Debug("Invalid password")
 			return authError
 		}
