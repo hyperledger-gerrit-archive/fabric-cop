@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"io/ioutil"
 	"net/http"
-	"path/filepath"
 
 	"github.com/cloudflare/cfssl/api"
 	"github.com/cloudflare/cfssl/cli"
@@ -29,7 +28,6 @@ import (
 	"github.com/cloudflare/cfssl/signer"
 	cop "github.com/hyperledger/fabric-cop/api"
 	"github.com/hyperledger/fabric-cop/util"
-	"github.com/jmoiron/sqlx"
 )
 
 // enrollHandler for register requests
@@ -70,32 +68,25 @@ func (h *enrollHandler) Handle(w http.ResponseWriter, r *http.Request) error {
 	return api.SendResponse(w, cert)
 }
 
-// Enroll is for enrolling a user
+// Enroll encapsulates the Config and functionality needed for user enrollment
 type Enroll struct {
-	DB         *sqlx.DB
-	DbAccessor *Accessor
-	cfg        *Config
+	cfg *Config
 }
 
 // NewEnrollUser is a constructor
 func NewEnrollUser() *Enroll {
 	e := new(Enroll)
 	e.cfg = CFG
-	home := e.cfg.Home
-	dataSource := filepath.Join(home, e.cfg.DataSource)
-	e.DB, _ = util.GetDB(e.cfg.DBdriver, dataSource)
-	e.DbAccessor = NewDBAccessor()
-	e.DbAccessor.SetDB(e.DB)
 	return e
 }
 
-// Enroll will enroll a user
+// Enroll will enroll an already registered user and provided an enrollment cert
 func (e *Enroll) Enroll(id string, token []byte, csrPEM []byte) ([]byte, cop.Error) {
 	log.Debugf("Received request to enroll user with id: %s\n", id)
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	user, err := e.DbAccessor.GetUser(id)
+	user, err := e.cfg.DBAccessor.GetUser(id)
 	if err != nil {
 		log.Error("User not registered")
 		return nil, cop.WrapError(err, cop.EnrollingUserError, "User not registered")
@@ -122,7 +113,7 @@ func (e *Enroll) Enroll(id string, token []byte, csrPEM []byte) ([]byte, cop.Err
 			State:    1,
 		}
 
-		err = e.DbAccessor.UpdateUser(updateState)
+		err = e.cfg.DBAccessor.UpdateUser(updateState)
 		if err != nil {
 			return nil, cop.WrapError(err, cop.EnrollingUserError, "Failed to updates user state")
 		}
@@ -132,27 +123,24 @@ func (e *Enroll) Enroll(id string, token []byte, csrPEM []byte) ([]byte, cop.Err
 	return nil, cop.NewError(cop.EnrollingUserError, "User was not enrolled")
 }
 
-// func (e *Enroll) signKey(csrPEM []byte, remoteHost string) ([]byte, cop.Error) {
+// signKey will sign a client cert with a host name by a given CA and CA key
 func (e *Enroll) signKey(csrPEM []byte) ([]byte, cop.Error) {
 	log.Debugf("signKey")
 	var cfg cli.Config
 	cfg.CAFile = e.cfg.CACert
 	cfg.CAKeyFile = e.cfg.CAKey
-	s, err := sign.SignerFromConfigAndDB(cfg, e.DB)
+	s, err := sign.SignerFromConfigAndDB(cfg, e.cfg.DB)
 	if err != nil {
-		log.Errorf("SignerFromConfig error: %s", err)
-		return nil, cop.WrapError(err, cop.CFSSL, "failed in SignerFromConfig")
+		log.Errorf("Failed to create signer [error: %s]", err)
+		return nil, cop.WrapError(err, cop.CFSSL, "Failed to create signer")
 	}
 	req := signer.SignRequest{
-		// Hosts:   signer.SplitHosts(c.Hostname),
 		Request: string(csrPEM),
-		// Profile: c.Profile,
-		// Label:   c.Label,
 	}
 	cert, err := s.Sign(req)
 	if err != nil {
-		log.Errorf("Sign error: %s", err)
-		return nil, cop.WrapError(err, cop.CFSSL, "failed in Sign")
+		log.Errorf("Failed to sign certificate [error: %s]", err)
+		return nil, cop.WrapError(err, cop.CFSSL, "Failed to sign certificate")
 	}
 	log.Debug("Sign success")
 	return cert, nil
