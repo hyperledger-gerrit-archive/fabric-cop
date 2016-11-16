@@ -102,12 +102,12 @@ func (ah *copAuthHandler) serveHTTP(w http.ResponseWriter, r *http.Request) erro
 		if cfg.Users == nil {
 			return invalidUserPassErr("user '%s' not found: no users", user)
 		}
-		user := cfg.Users[user]
-		if user == nil {
+		userRecord, _ := cfg.DBAccessor.GetUser(user)
+		if userRecord.ID == "" {
 			return invalidUserPassErr("user '%s' not found", user)
 		}
-		if user.Pass != pwd {
-			return invalidUserPassErr("incorrect password for '%s'; received %s but expected %s", user, pwd, user.Pass)
+		if userRecord.Token != pwd {
+			return invalidUserPassErr("incorrect password for '%s'; received %s but expected %s", userRecord.ID, pwd, userRecord.Token)
 		}
 		log.Debug("user/pass was correct")
 		// TODO: Do the following
