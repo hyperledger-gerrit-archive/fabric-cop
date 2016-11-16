@@ -25,6 +25,7 @@ import (
 	"github.com/cloudflare/cfssl/api"
 	cerr "github.com/cloudflare/cfssl/errors"
 	"github.com/cloudflare/cfssl/log"
+	cop "github.com/hyperledger/fabric-cop/api"
 	"github.com/hyperledger/fabric-cop/util"
 )
 
@@ -101,14 +102,14 @@ func (ah *copAuthHandler) serveHTTP(w http.ResponseWriter, r *http.Request) erro
 			log.Debug("No users are defined")
 			return authError
 		}
-		user := cfg.Users[user]
-		if user == nil {
-			log.Debug("User not found")
-			return authError
+		userRecord, _ := cfg.DBAccessor.GetUser(user)
+		if userRecord.ID == "" {
+			log.Debug("user '%s' not found", user)
+			return cop.NewError(cop.EnrollingUserError, "user '%s' not found", user)
 		}
-		if user.Pass != pwd {
-			log.Debug("Invalid password")
-			return authError
+		if userRecord.Token != pwd {
+			log.Debug("incorrect password for '%s'; received %s but expected %s", userRecord.ID, pwd, userRecord.Token)
+			return cop.NewError(cop.EnrollingUserError, "incorrect password for '%s'; received %s but expected %s", userRecord.ID, pwd, userRecord.Token)
 		}
 		log.Debug("User/pass was correct")
 		// TODO: Do the following
