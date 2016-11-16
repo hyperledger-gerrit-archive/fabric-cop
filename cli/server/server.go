@@ -69,6 +69,8 @@ func Command() {
 	serve.SetEndpoint("register", NewRegisterHandler)
 	// Add the "enroll" route/endpoint
 	serve.SetEndpoint("enroll", NewEnrollHandler)
+	// Add the "reenroll" route/endpoint
+	serve.SetEndpoint("reenroll", NewReenrollHandler)
 
 	// If the CLI returns an error, exit with an appropriate status code.
 	err := cli.Start(cmds)

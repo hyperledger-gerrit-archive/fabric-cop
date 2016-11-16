@@ -19,11 +19,11 @@ package server
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/cloudflare/cfssl/csr"
 	factory "github.com/hyperledger/fabric-cop"
 	"github.com/hyperledger/fabric-cop/idp"
 	"github.com/hyperledger/fabric-cop/util"
@@ -47,15 +47,20 @@ func createServer() *Server {
 	return s
 }
 
-func startServer() int {
-	os.RemoveAll(homeDir)
+func startServer(t *testing.T) int {
 	if !serverStarted {
 		serverStarted = true
+		os.RemoveAll(homeDir)
 		fmt.Println("starting COP server ...")
 		os.Setenv("COP_DEBUG", "true")
 		os.Setenv("COP_HOME", homeDir)
 		go runServer()
 		time.Sleep(5 * time.Second)
+		_, err := net.Dial("tcp", "127.0.0.1:8888")
+		if err != nil {
+			t.Errorf("COP server is not listening on port 8888")
+			return 10
+		}
 		fmt.Println("COP server started")
 	} else {
 		fmt.Println("COP server already started")
@@ -68,9 +73,11 @@ func runServer() {
 }
 
 func TestRegisterUser(t *testing.T) {
-	startServer()
+	if startServer(t) != 0 {
+		return
+	}
 
-	copServer := `{"serverAddr":"http://localhost:8888"}`
+	copServer := `{"serverURL":"http://localhost:8888"}`
 	c, _ := factory.NewClient(copServer)
 
 	req := &idp.RegistrationRequest{
@@ -91,7 +98,11 @@ func TestRegisterUser(t *testing.T) {
 }
 
 func TestEnrollUser(t *testing.T) {
-	copServer := `{"serverAddr":"http://localhost:8888"}`
+	if startServer(t) != 0 {
+		return
+	}
+
+	copServer := `{"serverURL":"http://localhost:8888"}`
 	c, _ := factory.NewClient(copServer)
 
 	req := &idp.EnrollmentRequest{
@@ -99,7 +110,21 @@ func TestEnrollUser(t *testing.T) {
 		Secret: "user1",
 	}
 
-	c.Enroll(req)
+	id, err := c.Enroll(req)
+	if err != nil {
+		t.Error("enroll of user 'testUser' with password 'user1' failed")
+		return
+	}
+
+	reenrollReq := &idp.ReenrollmentRequest{
+		ID: id,
+	}
+
+	_, err = c.Reenroll(reenrollReq)
+	if err != nil {
+		t.Error("reenroll of user 'testUser' failed")
+		return
+	}
 }
 
 func TestCreateHome(t *testing.T) {
@@ -121,19 +146,21 @@ func TestCreateHome(t *testing.T) {
 	os.RemoveAll("/tmp/test")
 }
 
-func TestEnroll(t *testing.T) {
-
+func TestBadEnroll(t *testing.T) {
+	if startServer(t) != 0 {
+		return
+	}
 	e, err := NewEnrollUser()
 	if err != nil {
 		t.Errorf("NewEnrollUser failed: %s", err)
 	}
 	testUnregisteredUser(e, t)
 	testIncorrectToken(e, t)
-	testEnrollingUser(e, t)
 
 }
 
 func testUnregisteredUser(e *Enroll, t *testing.T) {
+	t.Log("testUnregisteredUser")
 	_, err := e.Enroll("Unregistered", []byte("test"), nil)
 	if err == nil {
 		t.Error("Unregistered user should not be allowed to enroll, should have failed")
@@ -141,21 +168,9 @@ func testUnregisteredUser(e *Enroll, t *testing.T) {
 }
 
 func testIncorrectToken(e *Enroll, t *testing.T) {
+	t.Log("testIncorrectToken")
 	_, err := e.Enroll("notadmin", []byte("pass1"), nil)
 	if err == nil {
 		t.Error("Incorrect token should not be allowed to enroll, should have failed")
 	}
-}
-
-func testEnrollingUser(e *Enroll, t *testing.T) {
-	cr := csr.New()
-
-	csrPEM, _, _ := csr.ParseRequest(cr)
-
-	_, err := e.Enroll("testUser2", []byte("user2"), csrPEM)
-	if err != nil {
-		t.Error("Failed to enroll user")
-	}
-
-	os.RemoveAll(homeDir)
 }
