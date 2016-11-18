@@ -60,6 +60,7 @@ func TestSQLite(t *testing.T) {
 	cfg.DataSource = dbPath + "/cop.db"
 	fmt.Println("cfg: ", cfg)
 	db, err := GetDB(&cfg)
+
 	if err != nil {
 		t.Error(err)
 	}

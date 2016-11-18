@@ -99,15 +99,20 @@ func (ah *copAuthHandler) serveHTTP(w http.ResponseWriter, r *http.Request) erro
 			log.Debugf("basic auth is not allowed; found %s", authHdr)
 			return errBasicAuthNotAllowed
 		}
-		if cfg.Users == nil {
-			return invalidUserPassErr("user '%s' not found: no users", user)
+		userRecord, err := cfg.DBAccessor.GetUser(user)
+		if err != nil {
+			log.Error("Failed getting user, error: ", err)
+			return err
 		}
-		userRecord, _ := cfg.DBAccessor.GetUser(user)
 		if userRecord.ID == "" {
-			return invalidUserPassErr("user '%s' not found", user)
+			msg := fmt.Sprintf("user '%s' not found", userRecord.ID)
+			log.Error(msg)
+			return invalidUserPassErr(msg)
 		}
 		if userRecord.Token != pwd {
-			return invalidUserPassErr("incorrect password for '%s'; received %s but expected %s", userRecord.ID, pwd, userRecord.Token)
+			msg := fmt.Sprintf("incorrect password for '%s'; received %s but expected %s", userRecord.ID, pwd, userRecord.Token)
+			log.Error(msg)
+			return invalidUserPassErr(msg)
 		}
 		log.Debug("user/pass was correct")
 		// TODO: Do the following
@@ -132,7 +137,7 @@ func wrappedPath(path string) string {
 }
 
 func invalidUserPassErr(format string, args ...interface{}) error {
-	msg := fmt.Sprintf(format, args)
+	msg := fmt.Sprintf(format, args...)
 	log.Debug(msg)
 	if debug {
 		return errors.New(msg)
