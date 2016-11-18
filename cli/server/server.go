@@ -27,6 +27,7 @@ import (
 	"github.com/cloudflare/cfssl/cli/sign"
 	"github.com/cloudflare/cfssl/log"
 	cop "github.com/hyperledger/fabric-cop/api"
+	"github.com/jmoiron/sqlx"
 )
 
 // Usage text of 'cfssl serve'
@@ -104,8 +105,13 @@ func (s *Server) CreateHome() (string, error) {
 }
 
 // BootstrapDB loads the database based on config file
-func (s *Server) BootstrapDB(cfg *Config) error {
+func (s *Server) BootstrapDB(db *sqlx.DB) error {
 	log.Debug("Bootstrap DB")
+
+	CFG.DB = db
+	CFG.DBAccessor = NewDBAccessor()
+	CFG.DBAccessor.SetDB(db)
+
 	b := BootstrapDB()
 	b.PopulateGroupsTable()
 	b.PopulateUsersTable()
@@ -154,7 +160,7 @@ func startMain(args []string, c cli.Config) error {
 	}
 	cfg.Signer = mySigner
 
-	s.BootstrapDB(cfg)
+	s.BootstrapDB(db)
 
 	return serve.Command.Main(args, c)
 }
