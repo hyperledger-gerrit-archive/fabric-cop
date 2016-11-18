@@ -6,12 +6,14 @@ echo "Running all tests ..."
 go get github.com/axw/gocov/...
 go get github.com/AlekSi/gocov-xml
 
-for file in `find . | egrep -v "vendor|.git|bin|scripts|testdata|idp"`
-do
-  if [ -d $file ]; then
-     gocov test $file | gocov-xml > coverage.xml
-  fi
-done
+PKGS=`go list github.com/hyperledger/fabric-cop/... | grep -v /vendor/ | \
+                                                      grep -v /.git/ | \
+                                                      grep -v /bin | \
+                                                      grep -v /scripts | \
+                                                      grep -v /testdata | \
+                                                      grep -v /idp`
+
+gocov test $PKGS | gocov-xml > coverage.xml
 } | tee /tmp/test.results
 echo "Finished running all tests"
 SC=0
