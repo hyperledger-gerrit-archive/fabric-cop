@@ -25,10 +25,9 @@ import (
 
 	cop "github.com/hyperledger/fabric-cop/api"
 	cutil "github.com/hyperledger/fabric-cop/cli/client"
-	server "github.com/hyperledger/fabric-cop/cli/server"
+	"github.com/hyperledger/fabric-cop/cli/server"
 	"github.com/hyperledger/fabric-cop/idp"
 	"github.com/hyperledger/fabric-cop/util"
-	"github.com/jmoiron/sqlx"
 )
 
 type Admin struct {
@@ -60,7 +59,7 @@ const (
 	enrollPath = "/tmp/enrolltest"
 )
 
-func prepEnrollTest() *sqlx.DB {
+func prepEnrollTest() {
 	if _, err := os.Stat(enrollPath); err != nil {
 		if os.IsNotExist(err) {
 			os.MkdirAll(enrollPath, 0755)
@@ -69,12 +68,11 @@ func prepEnrollTest() *sqlx.DB {
 		os.RemoveAll(enrollPath)
 		os.MkdirAll(enrollPath, 0755)
 	}
-	return nil
 }
 
 // Test the server start command
 func TestStartServer(t *testing.T) {
-	os.RemoveAll("/tmp/enrollTest")
+	prepEnrollTest()
 	rtn := startServer()
 	if rtn != 0 {
 		t.Errorf("Failed to start server with return code: %d", rtn)

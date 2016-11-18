@@ -91,26 +91,6 @@ func clientCommand() {
 	}
 }
 
-// func serverCommand() {
-// 	// The server commands
-// 	cmds := map[string]*cli.Command{
-// 		"start": server.StartCommand,
-// 	}
-// 	// Set the authentication handler
-// 	serve.SetWrapHandler(server.NewAuthWrapper)
-// 	// Add the "register" route/endpoint
-// 	serve.SetEndpoint("register", server.NewRegisterHandler)
-// 	// Add the "enroll" route/endpoint
-// 	serve.SetEndpoint("enroll", server.NewEnrollHandler)
-// 	// Add the "gettcertbatch" route/endpoint
-// 	serve.SetEndpoint("gettcertbatch", gettcertbatch.NewTcertHandler)
-// 	// If the CLI returns an error, exit with an appropriate status code.
-// 	err := cli.Start(cmds)
-// 	if err != nil {
-// 		os.Exit(1)
-// 	}
-// }
-
 func cfsslCommand() {
 	cmds := map[string]*cli.Command{
 		"bundle":         bundle.Command,
