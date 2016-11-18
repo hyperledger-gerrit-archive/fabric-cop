@@ -67,6 +67,15 @@ func runServer() {
 	Start("../../testdata")
 }
 
+func TestPostgresFail(t *testing.T) {
+	cfg := new(Config)
+	cfg.DataSource = "dbname=cop sslmode=disable"
+	_, err := postgres(cfg)
+	if err == nil {
+		t.Error("No postgres server running, this should have failed")
+	}
+}
+
 func TestRegisterUser(t *testing.T) {
 	startServer()
 
@@ -74,8 +83,9 @@ func TestRegisterUser(t *testing.T) {
 	c, _ := factory.NewClient(copServer)
 
 	req := &idp.RegistrationRequest{
-		Name: "TestUser1",
-		Type: "Client",
+		Name:  "TestUser1",
+		Type:  "Client",
+		Group: "bank_a",
 	}
 
 	id, _ := factory.NewIdentity()
@@ -87,7 +97,10 @@ func TestRegisterUser(t *testing.T) {
 
 	req.Registrar = id
 
-	c.Register(req)
+	_, err = c.Register(req)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestEnrollUser(t *testing.T) {
@@ -99,12 +112,16 @@ func TestEnrollUser(t *testing.T) {
 		Secret: "user1",
 	}
 
-	c.Enroll(req)
+	_, err := c.Enroll(req)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestCreateHome(t *testing.T) {
 	s := createServer()
 	t.Log("Test Creating Home Directory")
+	os.Setenv("COP_HOME", "")
 	os.Setenv("HOME", "/tmp/test")
 
 	_, err := s.CreateHome()
@@ -122,13 +139,13 @@ func TestCreateHome(t *testing.T) {
 }
 
 func TestEnroll(t *testing.T) {
-
 	e := NewEnrollUser()
 
 	testUnregisteredUser(e, t)
 	testIncorrectToken(e, t)
 	testEnrollingUser(e, t)
 
+	os.RemoveAll(homeDir)
 }
 
 func testUnregisteredUser(e *Enroll, t *testing.T) {
@@ -154,6 +171,4 @@ func testEnrollingUser(e *Enroll, t *testing.T) {
 	if err != nil {
 		t.Error("Failed to enroll user")
 	}
-
-	os.RemoveAll(homeDir)
 }
