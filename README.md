@@ -96,8 +96,8 @@ The following command gets an ecert for the admin user.
 
 Create a JSON file as defined below for the user being registered.
 
+registerrequest.json:
 ```
-registerRequest.json:
 {
   "id": "User1",
   "type": "client",
@@ -109,8 +109,50 @@ registerRequest.json:
 The following command will register the user.
 ```
 # cd $COP/bin
-# ./cop client register ../testdata/registerRequest.json http://localhost:8888
+# ./cop client register ../testdata/registerrequest.json http://localhost:8888
 ```
+
+### Setting up a cluster
+
+#### Postgres
+
+Set up a proxy server. Haproxy is used in this example. Below is a basic configuration file that can be used to get haproxy up and running. Change hostname and port to reflect the settings of your COP servers.
+
+haproxy.conf
+
+```
+global
+      maxconn 4096
+      daemon
+
+defaults
+      mode http
+      maxconn 2000
+      timeout connect 5000
+      timeout client 50000
+      timeout server 50000
+
+listen http-in
+      bind *:8888
+      balance roundrobin
+      server server1 <hostname:port>
+      server server2 <hostname:port>
+      server server3 <hostname:port>
+```
+
+When starting up the COP servers specify the database that you would like to connect to. In your COP configuration file, the following should be present:
+
+cop.json
+```
+...
+"driver":"postgres",
+"data_source":"host=localhost dbname=cop sslmode=disable",
+...
+```
+
+Change "host" and "dbname" to reflect where your database is located and the database you would like to connect to. Default port is used if none is specified.
+
+Once your proxy, COP servers, and Postgres server are all running you can have your client direct traffic to the proxy server which will load balance and direct traffic to the appropriate COP server which will read/write from the Postgres database.  
 
 ### Run the cop tests
 
