@@ -25,6 +25,7 @@ import (
 	"github.com/cloudflare/cfssl/cli/serve"
 	"github.com/cloudflare/cfssl/log"
 	cop "github.com/hyperledger/fabric-cop/api"
+	"github.com/hyperledger/fabric-cop/cli/server/dbutil"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -136,7 +137,7 @@ func startMain(args []string, c cli.Config) error {
 		return cop.NewError(cop.DatabaseError, msg)
 	}
 
-	db, err := GetDB(cfg)
+	db, err := dbutil.GetDB(cfg.Home, cfg.DBdriver, cfg.DataSource)
 	if err != nil {
 		log.Error("Failed to open database")
 		return err

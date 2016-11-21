@@ -2,10 +2,10 @@
 
 echo "Running all tests ..."
 {
-for file in `find . | egrep -v "vendor|.git|bin|scripts|testdata|idp"`
+for file in `find . | egrep -v "vendor|.git|bin|scripts|testdata|idp|dbutil"`
 do
   if [ -d $file ]; then
-     go test $file -cover 
+     go test $file -cover
   fi
 done
 } | tee /tmp/test.results
