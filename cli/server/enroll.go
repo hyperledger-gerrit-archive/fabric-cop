@@ -17,7 +17,6 @@ limitations under the License.
 package server
 
 import (
-	"bytes"
 	"io/ioutil"
 	"net/http"
 
@@ -27,7 +26,7 @@ import (
 	"github.com/cloudflare/cfssl/log"
 	"github.com/cloudflare/cfssl/signer"
 	cop "github.com/hyperledger/fabric-cop/api"
-	"github.com/hyperledger/fabric-cop/util"
+	"github.com/jmoiron/sqlx"
 )
 
 // enrollHandler for register requests
@@ -86,41 +85,14 @@ func (e *Enroll) Enroll(id string, token []byte, csrPEM []byte) ([]byte, cop.Err
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	user, err := e.cfg.DBAccessor.GetUser(id)
-	if err != nil {
-		log.Error("User not registered")
-		return nil, cop.WrapError(err, cop.EnrollingUserError, "User not registered")
+	cert, signErr := e.signKey(csrPEM)
+	if signErr != nil {
+		log.Error("Failed to sign CSR - Enroll Failed")
+		return nil, signErr
 	}
 
-	if !bytes.Equal(token, []byte(user.Token)) {
-		log.Error("Identity or token does not match")
-		return nil, cop.NewError(cop.EnrollingUserError, "Identity or token does not match")
-	}
+	return cert, nil
 
-	if user.State == 0 {
-		cert, signErr := e.signKey(csrPEM)
-		if signErr != nil {
-			log.Error("Failed to sign CSR")
-			return nil, signErr
-		}
-
-		tok := util.RandomString(12)
-
-		updateState := cop.UserRecord{
-			ID:       user.ID,
-			Token:    tok,
-			Metadata: user.Metadata,
-			State:    1,
-		}
-
-		err = e.cfg.DBAccessor.UpdateUser(updateState)
-		if err != nil {
-			return nil, cop.WrapError(err, cop.EnrollingUserError, "Failed to updates user state")
-		}
-
-		return cert, nil
-	}
-	return nil, cop.NewError(cop.EnrollingUserError, "User was not enrolled")
 }
 
 func (e *Enroll) signKey(csrPEM []byte) ([]byte, cop.Error) {
@@ -128,7 +100,8 @@ func (e *Enroll) signKey(csrPEM []byte) ([]byte, cop.Error) {
 	var cfg cli.Config
 	cfg.CAFile = e.cfg.CACert
 	cfg.CAKeyFile = e.cfg.CAKey
-	s, err := sign.SignerFromConfigAndDB(cfg, e.cfg.DB)
+	db, err := sqlx.Open(e.cfg.DBdriver, e.cfg.DataSource)
+	s, err := sign.SignerFromConfigAndDB(cfg, db)
 	if err != nil {
 		log.Errorf("SignerFromConfig error: %s", err)
 		return nil, cop.WrapError(err, cop.CFSSL, "failed in SignerFromConfig")
@@ -142,7 +115,7 @@ func (e *Enroll) signKey(csrPEM []byte) ([]byte, cop.Error) {
 	cert, err := s.Sign(req)
 	if err != nil {
 		log.Errorf("Sign error: %s", err)
-		return nil, cop.WrapError(err, cop.CFSSL, "failed in Sign")
+		return nil, cop.WrapError(err, cop.CFSSL, "Failed in Sign")
 	}
 	log.Debug("Sign success")
 	return cert, nil

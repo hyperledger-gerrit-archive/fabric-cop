@@ -69,7 +69,7 @@ func runServer() {
 }
 
 func TestPostgresFail(t *testing.T) {
-	_, err := dbutil.GetDB("", "postgres", "dbname=cop sslmode=disable")
+	_, err := dbutil.GetDB("postgres", "dbname=cop sslmode=disable")
 	if err == nil {
 		t.Error("No postgres server running, this should have failed")
 	}
@@ -135,15 +135,6 @@ func TestCreateHome(t *testing.T) {
 	}
 
 	os.RemoveAll("/tmp/test")
-}
-
-func TestInvalidUserPassErr(t *testing.T) {
-	format := "Test"
-	err := invalidUserPassErr(format)
-	fmt.Println(">>>>>>>>>>>>>>>> err: ", err)
-	if err.Error() != "Test" {
-		t.Error("Incorrect error message returned")
-	}
 }
 
 func TestEnroll(t *testing.T) {

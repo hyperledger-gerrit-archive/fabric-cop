@@ -17,7 +17,6 @@ limitations under the License.
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
@@ -116,10 +115,7 @@ func TestRegister(t *testing.T) {
 
 func TestRegisterAndEnrollUser(t *testing.T) {
 	r := server.NewRegisterUser()
-	metaDataBytes, _ := json.Marshal(testEnroll.Attributes)
-	metaData := string(metaDataBytes)
-	// user.CallerID = Registrar.User
-	tok, err := r.RegisterUser(testEnroll.User, testEnroll.Type, testEnroll.Group, metaData, Registrar.User)
+	tok, err := r.RegisterUser(testEnroll.User, testEnroll.Type, testEnroll.Group, testEnroll.Attributes, Registrar.User)
 	if err != nil {
 		t.Errorf("Failed to register user: %s, err: %s", testEnroll.User, err)
 	}

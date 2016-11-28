@@ -85,38 +85,28 @@ func (ah *copAuthHandler) serveHTTP(w http.ResponseWriter, r *http.Request) erro
 	log.Infof("Received request\n%s", util.HTTPRequestToString(r))
 	cfg := CFG
 	if !cfg.Authentication {
-		log.Debug("authentication is disabled")
+		log.Debug("Authentication is disabled")
 		return nil
 	}
 	authHdr := r.Header.Get("authorization")
 	if authHdr == "" {
-		log.Debug("no authorization header")
+		log.Debug("No authorization header")
 		return errNoAuthHdr
 	}
 	user, pwd, ok := r.BasicAuth()
 	if ok {
 		if !ah.basic {
-			log.Debugf("basic auth is not allowed; found %s", authHdr)
+			log.Debugf("Basic auth is not allowed; found %s", authHdr)
 			return errBasicAuthNotAllowed
 		}
-		userRecord, err := cfg.DBAccessor.GetUser(user)
+		_, err := cfg.UserRegistery.LoginUserBasicAuth(user, pwd)
 		if err != nil {
-			log.Error("Failed getting user, error: ", err)
+			log.Errorf("Failed authorizing user, [error: %s]", err)
 			return err
 		}
-		if userRecord.ID == "" {
-			msg := fmt.Sprintf("user '%s' not found", userRecord.ID)
-			log.Error(msg)
-			return invalidUserPassErr(msg)
-		}
-		if userRecord.Token != pwd {
-			msg := fmt.Sprintf("incorrect password for '%s'; received %s but expected %s", userRecord.ID, pwd, userRecord.Token)
-			log.Error(msg)
-			return invalidUserPassErr(msg)
-		}
-		log.Debug("user/pass was correct")
+
+		log.Debug("User/Pass was correct")
 		// TODO: Do the following
-		// 1) Check state of 'user' in DB.  Fail if user was found and already enrolled.
 		// 2) Update state of 'user' in DB as enrolled and return true.
 		return nil
 	}
