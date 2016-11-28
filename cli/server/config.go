@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/cloudflare/cfssl/certdb"
 	"github.com/cloudflare/cfssl/cli"
 	"github.com/cloudflare/cfssl/log"
 	"github.com/hyperledger/fabric-cop/idp"
@@ -31,17 +32,18 @@ import (
 
 // Config is COP config structure
 type Config struct {
-	Debug          bool             `json:"debug,omitempty"`
-	Authentication bool             `json:"authentication,omitempty"`
-	Users          map[string]*User `json:"users,omitempty"`
-	DBdriver       string           `json:"driver"`
-	DataSource     string           `json:"data_source"`
-	Home           string
-	ConfigFile     string
-	CACert         string
-	CAKey          string
-	DB             *sqlx.DB
-	DBAccessor     *Accessor
+	Debug           bool             `json:"debug,omitempty"`
+	Authentication  bool             `json:"authentication,omitempty"`
+	Users           map[string]*User `json:"users,omitempty"`
+	DBdriver        string           `json:"driver"`
+	DataSource      string           `json:"data_source"`
+	Home            string
+	ConfigFile      string
+	CACert          string
+	CAKey           string
+	DB              *sqlx.DB
+	DBAccessor      *Accessor
+	cfsslDBAccessor certdb.Accessor
 }
 
 // User information
