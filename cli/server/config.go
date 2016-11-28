@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/cloudflare/cfssl/certdb"
 	"github.com/cloudflare/cfssl/cli"
 	"github.com/cloudflare/cfssl/log"
 	"github.com/hyperledger/fabric-cop/idp"
@@ -42,6 +43,7 @@ type Config struct {
 	CAKey          string
 	DB             *sqlx.DB
 	DBAccessor     *Accessor
+	certDBAccessor certdb.Accessor
 }
 
 // User information
