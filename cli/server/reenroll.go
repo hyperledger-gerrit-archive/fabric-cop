@@ -60,13 +60,13 @@ func (h *reenrollHandler) Handle(w http.ResponseWriter, r *http.Request) error {
 	}
 	r.Body.Close()
 
-	user, err := util.VerifyToken(authHdr, body)
+	x509cert, err := util.VerifyToken(authHdr, body)
 	if err != nil {
 		return err
 	}
 
 	reenroll := NewReenrollUser()
-	cert, err := reenroll.Enroll(user, body)
+	cert, err := reenroll.Enroll(x509cert.Subject.CommonName, body)
 	if err != nil {
 		return err
 	}

@@ -29,7 +29,6 @@ import (
 	"github.com/cloudflare/cfssl/log"
 	"github.com/cloudflare/cfssl/signer"
 	cop "github.com/hyperledger/fabric-cop/api"
-	"github.com/hyperledger/fabric-cop/util"
 )
 
 // enrollHandler for register requests
