@@ -108,11 +108,11 @@ func (ah *copAuthHandler) serveHTTP(w http.ResponseWriter, r *http.Request) erro
 			return err
 		}
 		if userRecord.ID == "" {
-			log.Debug("User '%s' not found", user)
+			log.Debugf("User '%s' not found", user)
 			return cop.NewError(cop.EnrollingUserError, "User '%s' not found", user)
 		}
 		if userRecord.Token != pwd {
-			log.Debug("Incorrect password for '%s'; received %s but expected %s", userRecord.ID, pwd, userRecord.Token)
+			log.Debugf("Incorrect password for '%s'; received %s but expected %s", userRecord.ID, pwd, userRecord.Token)
 			return cop.NewError(cop.EnrollingUserError, "Incorrect password for '%s'; received %s but expected %s", userRecord.ID, pwd, userRecord.Token)
 		}
 		log.Debug("User/pass was correct")
