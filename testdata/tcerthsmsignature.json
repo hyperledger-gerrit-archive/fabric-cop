@@ -1,0 +1,35 @@
+{
+
+	"TemporalCrypto": [{
+		"PubKey": "hAPPY",
+		"Signature": {
+			"EC": {
+				"R": "abc",
+				"S": "def"
+			},
+			"RSA": "abc"
+		}
+	}, {
+		"PubKey": "Hello",
+		"Signature": {
+			"EC": {
+				"R": "abc",
+				"S": "def"
+			},
+			"RSA": "abc"
+		}
+	}],
+
+	"EnrollmentCert": {
+		"Certificate": "CertSring",
+		"Signature": {
+			"EC": {
+				"R": "abc",
+				"S": "def"
+			},
+			"RSA": "abc"
+		}
+
+	}
+
+}

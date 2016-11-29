@@ -1,0 +1,41 @@
+{
+
+		"Num":"1",
+		"attribute-encryption_enabled" : false,
+	  "AttributeSet":[
+			{
+				"AttributeName":"hAPPY",
+				"AttributeValue":"bIRTHDAY"
+			},
+			{
+				 "AttributeName":"GOOD",
+				 "AttributeValue":"dEAL"
+			 },
+			{
+				"AttributeName":"Sun",
+				"AttributeValue":"Rise"
+				}
+			],
+
+      "TemporalCrypto":[
+  			  "pubkey1" , "pubkey2" , "pubkey3"
+  			],
+
+			"EnrollmentCert" :
+			{
+          "Certificate": "CertSring"
+
+        } ,
+
+       "csrData" :
+       {
+          "CN" : "abc.com",
+          "O"  : "IBM" ,
+          "OU" : "SWG" ,
+          "ST" : "NC" ,
+          "L"  : "Durham" ,
+          "C"  : "USA"
+       }
+
+			
+   }

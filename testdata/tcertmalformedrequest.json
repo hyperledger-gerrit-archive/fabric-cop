@@ -1,0 +1,30 @@
+{
+
+		"RootPreKey": "S5i15SgeDdd1pYVmaeA92B30Gq1cY8HHpoMHN5qpEu+ioK0gdUsJP2XI4wK43AQh",
+		"Num": "1",
+		"attribute-encryption_enabled": false,
+		"AttributeSet": [{
+			"AttributeName": "SSN",
+			"AttributeValue": "123-456-7890"
+		}, {
+			"AttributeName": "Income",
+			"AttributeValue": "USD"
+		}, {
+			"AttributeName": "DoB",
+			"AttributeValue": "12/12/2012"
+		}],
+		"CertificateRequestData": {
+
+
+			"C": "US",
+			"L": "RTP",
+			"O": "IBM",
+			"OU": "WWW",
+			"ST": "NC",
+			"CN": "www.doit.com",
+			"validityPeriod": 1
+		},
+		"CertificateType": 1
+
+
+}
