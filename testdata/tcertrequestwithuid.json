@@ -3,7 +3,7 @@
 		"TS":"ghi",
 		"RootPreKey" : "123" ,
 		"Num":"1",
-
+		"uid" : "abc" ,
 		"attribute-encryption_enabled" : false,
 	  "AttributeSet":[
 			{
@@ -24,9 +24,9 @@
 
 
             "C": "US",
-            "L": "",
+            "L": "RTP",
             "O": "IBM",
-            "OU": "SWG",
+            "OU": "WWW",
             "ST": "NC",
 						"CN" : "www.doit.com" ,
 						"validityPeriod" : 10
