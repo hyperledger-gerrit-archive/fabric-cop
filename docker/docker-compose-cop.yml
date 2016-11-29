@@ -1,0 +1,24 @@
+cop:
+   image: fabric-cop:latest
+   ports:
+     - "8888:8888"
+     - "53:53/udp"
+   command: sh -c 'cop server start -ca ~/.cop/ec.pem -ca-key ~/.cop/ec-key.pem -config /config/cop.json -address "0.0.0.0"'
+
+admin-client:
+   image: fabric-cop:latest
+   command: sh -c "sleep 5;cop client enroll admin adminpw http://cop:8888 /config/csr.json"
+   links:
+     - cop
+
+sdk-client:
+   image: fabric-cop:latest
+   command: sh -c "sleep 5;cop client enroll sdk sdkpw http://cop:8888 /config/csr.json"
+   links:
+     - cop
+
+bob-client:
+   image: fabric-cop:latest
+   command: sh -c "sleep 5;cop client enroll bob bobpw http://cop:8888 /config/csr.json"
+   links:
+     - cop
