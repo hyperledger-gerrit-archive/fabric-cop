@@ -1,0 +1,4 @@
+{
+   "CertificateMandatoryFieilds":["CN" ,  "C" , "validityPeriod" , "O" , "OU"]
+
+}
