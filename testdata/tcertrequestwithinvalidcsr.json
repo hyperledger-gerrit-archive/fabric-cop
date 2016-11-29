@@ -23,13 +23,13 @@
 			{
 
 
-            "C": "US",
+
             "L": "",
             "O": "IBM",
             "OU": "SWG",
-            "ST": "NC",
-						"CN" : "www.doit.com" ,
-						"validityPeriod" : 10
+            "ST": "NC"
+
+
         }
 
 

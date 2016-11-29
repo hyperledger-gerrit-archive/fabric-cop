@@ -1,0 +1,24 @@
+{
+	"TCertBatchRequest": {
+		"RootPreKey": "S5i15SgeDdd1pYVmaeA92B30Gq1cY8HHpoMHN5qpEu+ioK0gdUsJP2XI4wK43AQh",
+		"Num": "1",
+		"attribute-encryption_enabled": false,
+
+		"AttributeSet": [{
+			"AttributeName": "hAPPY",
+			"AttributeValue": "bIRTHDAY"
+		}],
+
+		"CertificateRequestData": {
+			"C": "US",
+			"L": "RTP",
+			"O": "IBM",
+			"OU": "WWW",
+			"ST": "NC",
+			"CN": "www.doit.com",
+			"validityPeriod": 1
+		}
+
+
+	}
+}
