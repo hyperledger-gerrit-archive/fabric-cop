@@ -1,0 +1,5 @@
+{
+	"CAKeyFile": "../../testdata/ec-key-bad.pem",
+	"CACertificate": "../../testdata/ec-bad.pem"
+
+}

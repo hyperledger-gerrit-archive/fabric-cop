@@ -1,5 +1,6 @@
 {
 "Certificate" : "" ,
+"HashAlgo": "" ,
 "ECSignature":
   {"R":"",
     "S":""
