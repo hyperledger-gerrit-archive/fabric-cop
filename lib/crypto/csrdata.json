@@ -1,0 +1,6 @@
+{
+        "CN": "Transaction Certificate",
+        "C": "US",
+        "O": "Hyperledger",
+        "ValidityPeriod" : 1
+}

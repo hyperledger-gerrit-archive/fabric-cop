@@ -14,11 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package util
+package crypto
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -29,7 +27,6 @@ import (
 )
 
 //CertificateSpec defines structure for Certificate template
-//certificateType 1: Self Signed , 2 : COP Server Signed , 3 : CSR
 type CertificateSpec struct {
 	commonName       string
 	serialNumber     *big.Int
@@ -43,21 +40,13 @@ type CertificateSpec struct {
 	locality         string
 	Organization     string
 	OrganizationUnit string
-	certificateType  float64
 }
 
-//generates Self Signed Certificate or CA certificate based on template passed
-//Currently ECDSA private and public key is supportd
-//Only self signed certificate is supported currently : CoP Signed will be implemented later
-func newCertificateFromSpec(spec *CertificateSpec) ([]byte, error) {
+//NewCertificateFromSpec generates cerficate based on template passed
+func NewCertificateFromSpec(spec *CertificateSpec) ([]byte, error) {
 
 	var isCA = false
-	certType := spec.GetCertificateType()
 
-	if certType == 1 {
-
-		isCA = true
-	}
 	tmpl := x509.Certificate{
 		SerialNumber: spec.GetSerialNumber(),
 		Subject: pkix.Name{
@@ -84,17 +73,21 @@ func newCertificateFromSpec(spec *CertificateSpec) ([]byte, error) {
 		tmpl.ExtraExtensions = *spec.GetExtensions()
 	}
 
-	privKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
-	if err != nil {
-		log.Error("Key Pair cannot be generated for self signed cert")
-	}
+	pub := spec.GetPublicKey()
 
-	raw, err := x509.CreateCertificate(rand.Reader, &tmpl, &tmpl, &privKey.PublicKey, privKey)
+	privateKey, certificate, err := GetCAKeyAndCert()
+	if err != nil {
+		log.Error("Problem in getting CA certificat and Key object generation")
+		return nil, err
+	}
+	raw, err := x509.CreateCertificate(rand.Reader, &tmpl, certificate, pub, privateKey)
 	log.Debug("Certificate Created")
 	if err != nil {
 		log.Error("Certificate Generation failed")
+		return nil, err
 	}
-	return raw, err
+
+	return raw, nil
 }
 
 // GetCommonName returns the spec's Common Name field/value
@@ -176,9 +169,4 @@ func (spec *CertificateSpec) GetOrganizationalUnit() string {
 //GetState returns subejct's state
 func (spec *CertificateSpec) GetState() string {
 	return spec.State
-}
-
-//GetCertificateType returns certificateType 1:Self Signed , 2:COP Signed , 3: CSR
-func (spec *CertificateSpec) GetCertificateType() float64 {
-	return spec.certificateType
 }
