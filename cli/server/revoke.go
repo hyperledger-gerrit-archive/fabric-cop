@@ -88,10 +88,6 @@ func (h *revokeHandler) Handle(w http.ResponseWriter, r *http.Request) error {
 			log.Warningf("Revoke failed: %s", err)
 			return notFound(w, err)
 		}
-		// userInfo := user.(*spi.UserInfo)
-		// userInfo.
-		// 	user.State = -1
-		// err = CFG.UserRegistery.UpdateUser(user)
 		err = CFG.UserRegistery.UpdateField(req.Name, state, -1)
 		if err != nil {
 			log.Warningf("Revoke failed: %s", err)
