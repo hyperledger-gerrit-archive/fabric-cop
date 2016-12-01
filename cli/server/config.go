@@ -39,6 +39,7 @@ type Config struct {
 	Users          map[string]*User `json:"users,omitempty"`
 	DBdriver       string           `json:"driver"`
 	DataSource     string           `json:"data_source"`
+	UsrReg         UserReg          `json:"user_registry"`
 	Home           string
 	ConfigFile     string
 	CACert         string
@@ -47,6 +48,11 @@ type Config struct {
 	certDBAccessor certdb.Accessor
 	Signer         signer.Signer
 	UserRegistery  spi.UserRegistry
+}
+
+// UserReg defines the user registery properties
+type UserReg struct {
+	MaxEnrollments int `json:"max_enrollments"`
 }
 
 // User information
