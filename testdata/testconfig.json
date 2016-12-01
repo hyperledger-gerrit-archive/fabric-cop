@@ -2,6 +2,9 @@
  "authentication": true,
  "driver":"sqlite3",
  "data_source":"cop.db",
+ "user_registry": {
+   "max_enrollments": 1
+ },
  "users": {
     "admin": {
       "pass": "adminpw",
@@ -18,13 +21,13 @@
     "testUser": {
       "pass": "user1",
       "type": "client",
-      "group": "bank_a",
+      "group": "bank_b",
       "attrs": []
     },
     "testUser2": {
       "pass": "user2",
       "type": "client",
-      "group": "bank_a",
+      "group": "bank_c",
       "attrs": []
     }
  },

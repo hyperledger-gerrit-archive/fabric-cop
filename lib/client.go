@@ -90,7 +90,6 @@ func (c *Client) Register(req *idp.RegistrationRequest) (*idp.RegistrationRespon
 
 	buf, err := req.Registrar.(*Identity).post("register", request)
 	if err != nil {
-		log.Error(err)
 		return nil, err
 	}
 
@@ -128,7 +127,6 @@ func (c *Client) Enroll(req *idp.EnrollmentRequest) (idp.Identity, error) {
 	post.SetBasicAuth(req.Name, req.Secret)
 	cert, err := c.sendPost(post)
 	if err != nil {
-		log.Error(err)
 		return nil, err
 	}
 

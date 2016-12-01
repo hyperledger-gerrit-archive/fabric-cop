@@ -21,6 +21,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/cloudflare/cfssl/api"
@@ -62,8 +63,6 @@ func (h *registerHandler) Handle(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-
-	// attributes, _ := json.Marshal(req.Attributes)
 
 	// Register User
 	tok, err := reg.RegisterUser(req.User, req.Type, req.Group, req.Attributes, req.CallerID)
@@ -116,7 +115,8 @@ func (r *Register) RegisterUser(id string, userType string, group string, attrib
 		return "", err
 	}
 
-	tok, err = r.registerUserID(id, userType, attributes, opt...)
+	tok, err = r.registerUserID(id, userType, group, attributes, opt...)
+
 	if err != nil {
 		return "", err
 	}
@@ -147,7 +147,7 @@ func (r *Register) validateID(id string, userType string, group string) error {
 }
 
 // registerUserID registers a new user and its enrollmentID, role and state
-func (r *Register) registerUserID(id string, userType string, attributes []idp.Attribute, opt ...string) (string, error) {
+func (r *Register) registerUserID(id string, userType string, group string, attributes []idp.Attribute, opt ...string) (string, error) {
 	log.Debugf("Registering user id: %s\n", id)
 	mutex.Lock()
 	defer mutex.Unlock()
@@ -163,17 +163,34 @@ func (r *Register) registerUserID(id string, userType string, attributes []idp.A
 		Name:       id,
 		Pass:       tok,
 		Type:       userType,
+		Group:      group,
 		Attributes: attributes,
 	}
 
 	_, err := r.cfg.UserRegistery.GetUser(id)
 	if err == nil {
 		log.Error("User is already registered")
-		return "", errors.New("User is already registered")
+		return "", cop.NewError(cop.RegisteringUserError, "User is already registered")
 	}
 	err = r.cfg.UserRegistery.InsertUser(insert)
 	if err != nil {
 		return "", err
+	}
+
+	if len(opt) > 1 {
+		maxE, err := strconv.Atoi(opt[1])
+		if err != nil {
+			return "", err
+		}
+		err = r.cfg.UserRegistery.UpdateField(id, maxEnrollments, maxE)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		err = r.cfg.UserRegistery.UpdateField(id, maxEnrollments, 1)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	return tok, nil
@@ -181,7 +198,6 @@ func (r *Register) registerUserID(id string, userType string, attributes []idp.A
 
 func (r *Register) isValidGroup(group string) (bool, error) {
 	log.Debug("Validating group: " + group)
-	// Check cop.yaml to see if group is valid
 
 	_, err := r.cfg.UserRegistery.GetGroup(group)
 	if err != nil {
@@ -209,7 +225,7 @@ func (r *Register) canRegister(registrar string, userType string) error {
 
 	user, check, err := r.isRegistrar(registrar)
 	if err != nil {
-		return errors.New("Can't Register: " + err.Error())
+		return cop.NewError(cop.RegisteringUserError, "Can't Register: [error: %s]"+err.Error())
 	}
 
 	if check != true {
@@ -226,7 +242,7 @@ func (r *Register) canRegister(registrar string, userType string) error {
 		if strings.ToLower(rAttr.Name) == strings.ToLower(delegateRoles) {
 			registrarRoles := strings.Split(rAttr.Value, ",")
 			if !util.StrContained(userType, registrarRoles) {
-				return errors.New("user " + registrar + " may not register type " + userType)
+				return cop.NewError(cop.RegisteringUserError, "user %s may not register type %s", registrar, userType)
 			}
 		}
 	}
@@ -252,5 +268,5 @@ func (r *Register) isRegistrar(registrar string) (spi.User, bool, error) {
 	}
 
 	log.Errorf("%s is not a registrar", registrar)
-	return nil, false, errors.New("Is not registrar")
+	return nil, false, cop.NewError(cop.RegisteringUserError, "%s is not a registrar", registrar)
 }

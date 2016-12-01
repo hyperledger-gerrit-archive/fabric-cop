@@ -146,15 +146,26 @@ func GetCertificate(certificate []byte) (*x509.Certificate, error) {
 
 }
 
-//GetCertitificateSerialNumber returns serial number for Certificate byte
+//GetCertificateSerialNumber returns serial number for Certificate byte
 //return -1 , if there is problem with the cert
-func GetCertitificateSerialNumber(certificatebyte []byte) (*big.Int, error) {
+func GetCertificateSerialNumber(certificatebyte []byte) (*big.Int, error) {
 	certificate, error := GetCertificate(certificatebyte)
 	if error != nil {
 		log.Error("Not a valid Certificate")
 		return big.NewInt(-1), error
 	}
 	return certificate.SerialNumber, nil
+}
+
+//GetCertificateAKI returns the authority key idenitifier for Certificate byte
+//return -1 , if there is problem with the cert
+func GetCertificateAKI(certificatebyte []byte) ([]byte, error) {
+	certificate, error := GetCertificate(certificatebyte)
+	if error != nil {
+		log.Error("Not a valid Certificate")
+		return nil, error
+	}
+	return certificate.AuthorityKeyId, nil
 }
 
 //GetPrivateKey returns ecdsa.PrivateKey or rsa.privateKey object for the private Key Bytes

@@ -22,6 +22,7 @@ limitations under the License.
 package server
 
 import (
+	"github.com/cloudflare/cfssl/log"
 	cop "github.com/hyperledger/fabric-cop/api"
 	"github.com/hyperledger/fabric-cop/cli/server/dbutil"
 	"github.com/hyperledger/fabric-cop/cli/server/spi"
@@ -30,6 +31,7 @@ import (
 
 // NewUserRegistry abstracts out the user retreival
 func NewUserRegistry(typ string, config string) (spi.UserRegistry, error) {
+	log.Debugf("Create new user registery of type: %s", typ)
 	var db *sqlx.DB
 	var err error
 	var exists bool
