@@ -17,6 +17,7 @@ limitations under the License.
 package server
 
 import (
+	"encoding/hex"
 	"errors"
 	"io/ioutil"
 	"net/http"
@@ -28,7 +29,7 @@ import (
 	"github.com/cloudflare/cfssl/log"
 	"github.com/cloudflare/cfssl/signer"
 	cop "github.com/hyperledger/fabric-cop/api"
-	"github.com/hyperledger/fabric-cop/util"
+	"github.com/hyperledger/fabric-cop/lib/crypto"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -96,20 +97,25 @@ func (e *Enroll) Enroll(id string, token []byte, csrPEM []byte) ([]byte, cop.Err
 		return nil, signErr
 	}
 
-	tok := util.RandomString(12)
-
-	err := e.cfg.UserRegistery.UpdateField(id, password, tok)
+	serialNum, err := crypto.GetCertificateSerialNumber(cert)
 	if err != nil {
-		log.Errorf("Failed to update user token - Enroll Failed [error: %s]", err)
-		return nil, cop.WrapError(err, cop.EnrollingUserError, "Failed to update user token - Enroll Failed")
+		log.Error("Failed to get certificate serial number")
 	}
 
-	err = e.cfg.UserRegistery.UpdateField(id, state, 1)
+	err = e.cfg.UserRegistery.UpdateField(id, serialNumber, serialNum.String())
 	if err != nil {
-		log.Errorf("Failed to update user state - Enroll Failed [error: %s]", err)
-		return nil, cop.WrapError(err, cop.EnrollingUserError, "Failed to update user state - Enroll Failed")
+		log.Error("Failed to update user registery")
 	}
 
+	authKeyID, err := crypto.GetCertificateAKI(cert)
+	if err != nil {
+		log.Error("Failed to get certificate serial number")
+	}
+
+	err = e.cfg.UserRegistery.UpdateField(id, aki, hex.EncodeToString(authKeyID))
+	if err != nil {
+		log.Error("Failed to update user registery")
+	}
 	return cert, nil
 }
 

@@ -19,6 +19,7 @@ package server
 import (
 	"errors"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/cloudflare/cfssl/log"
@@ -43,7 +44,7 @@ func (b *Bootstrap) PopulateUsersTable() error {
 	for name, info := range b.cfg.Users {
 
 		reg := NewRegisterUser()
-		reg.RegisterUser(name, info.Type, info.Group, info.Attributes, "", info.Pass)
+		reg.RegisterUser(name, info.Type, info.Group, info.Attributes, "", info.Pass, strconv.Itoa(b.cfg.UsrReg.MaxEnrollments))
 	}
 	return nil
 }
