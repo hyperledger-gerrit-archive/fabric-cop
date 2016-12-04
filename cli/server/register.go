@@ -167,12 +167,12 @@ func (r *Register) registerUserID(id string, userType string, group string, attr
 		Attributes: attributes,
 	}
 
-	_, err := r.cfg.UserRegistery.GetUser(id)
+	_, err := userRegistry.GetUser(id)
 	if err == nil {
 		log.Error("User is already registered")
 		return "", cop.NewError(cop.RegisteringUserError, "User is already registered")
 	}
-	err = r.cfg.UserRegistery.InsertUser(insert)
+	err = userRegistry.InsertUser(insert)
 	if err != nil {
 		return "", err
 	}
@@ -182,12 +182,12 @@ func (r *Register) registerUserID(id string, userType string, group string, attr
 		if err != nil {
 			return "", err
 		}
-		err = r.cfg.UserRegistery.UpdateField(id, maxEnrollments, maxE)
+		err = userRegistry.UpdateField(id, maxEnrollments, maxE)
 		if err != nil {
 			return "", err
 		}
 	} else {
-		err = r.cfg.UserRegistery.UpdateField(id, maxEnrollments, 1)
+		err = userRegistry.UpdateField(id, maxEnrollments, 1)
 		if err != nil {
 			return "", err
 		}
@@ -199,7 +199,7 @@ func (r *Register) registerUserID(id string, userType string, group string, attr
 func (r *Register) isValidGroup(group string) (bool, error) {
 	log.Debug("Validating group: " + group)
 
-	_, err := r.cfg.UserRegistery.GetGroup(group)
+	_, err := userRegistry.GetGroup(group)
 	if err != nil {
 		log.Error("Error occured getting group: ", err)
 		return false, err
@@ -254,7 +254,7 @@ func (r *Register) canRegister(registrar string, userType string) error {
 func (r *Register) isRegistrar(registrar string) (spi.User, bool, error) {
 	log.Debugf("isRegistrar - Check if specified registrar (%s) has appropriate permissions", registrar)
 
-	user, err := r.cfg.UserRegistery.GetUser(registrar)
+	user, err := userRegistry.GetUser(registrar)
 	if err != nil {
 		return nil, false, errors.New("Registrar does not exist")
 	}

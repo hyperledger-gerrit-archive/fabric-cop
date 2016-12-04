@@ -1,0 +1,232 @@
+/*
+Copyright IBM Corp. 2016 All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+                 http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package server
+
+import (
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/cloudflare/cfssl/certdb"
+	certsql "github.com/cloudflare/cfssl/certdb/sql"
+	"github.com/cloudflare/cfssl/log"
+	cop "github.com/hyperledger/fabric-cop/api"
+	"github.com/hyperledger/fabric-cop/lib/crypto"
+	"github.com/kisielk/sqlstruct"
+
+	"github.com/jmoiron/sqlx"
+)
+
+const (
+	insertSQL = `
+INSERT INTO certificates (id, serial_number, authority_key_identifier, ca_label, status, reason, expiry, revoked_at, pem)
+	VALUES (:id, :serial_number, :authority_key_identifier, :ca_label, :status, :reason, :expiry, :revoked_at, :pem);`
+
+	selectSQL = `
+SELECT %s FROM certificates
+WHERE (id = ?);`
+
+	updateRevokeSQL = `
+UPDATE certificates
+SET status='revoked', revoked_at=CURRENT_TIMESTAMP, reason=:reason
+WHERE (id = :id);`
+)
+
+// CertRecord extends CFSSL CertificateRecord by adding an enrollment ID to the record
+type CertRecord struct {
+	ID string `db:"id"`
+	certdb.CertificateRecord
+}
+
+// CffslAccessor implements certdb.Accessor interface.
+type CffslAccessor struct {
+	accessor certdb.Accessor
+	db       *sqlx.DB
+}
+
+// NewCffslAccessor returns a new Accessor.
+func NewCffslAccessor(db *sqlx.DB) *CffslAccessor {
+	cffslAcc := new(CffslAccessor)
+	cffslAcc.db = db
+	// cffslAcc.SetDB(db)
+	cffslAcc.accessor = certsql.NewAccessor(db)
+	return cffslAcc
+}
+
+func (d *CffslAccessor) checkDB() error {
+	if d.db == nil {
+		return errors.New("Error")
+	}
+	return nil
+}
+
+// SetDB changes the underlying sql.DB object Accessor is manipulating.
+func (d *CffslAccessor) SetDB(db *sqlx.DB) {
+	d.db = db
+	return
+}
+
+// InsertCertificate puts a CertificateRecord into db.
+func (d *CffslAccessor) InsertCertificate(cr certdb.CertificateRecord) error {
+	pemBytes := []byte(cr.PEM)
+	cert, err := crypto.GetCertificate(pemBytes)
+	if err != nil {
+		return err
+	}
+	subject := cert.Subject.CommonName
+
+	log.Debugf("DB: Insert Certificate for user %s", subject)
+
+	err = d.checkDB()
+	if err != nil {
+		return err
+	}
+
+	var record = new(CertRecord)
+	record.ID = subject
+	record.Serial = cr.Serial
+	record.AKI = cr.AKI
+	record.CALabel = cr.CALabel
+	record.Status = cr.Status
+	record.Reason = cr.Reason
+	record.Expiry = cr.Expiry.UTC()
+	record.RevokedAt = cr.RevokedAt.UTC()
+	record.PEM = cr.PEM
+
+	res, err := d.db.NamedExec(insertSQL, record)
+	if err != nil {
+		log.Errorf("Error occured during insertion of record [error: %s]", err)
+		return err
+	}
+
+	numRowsAffected, err := res.RowsAffected()
+	log.Debug("numRowsAffected: ", numRowsAffected)
+
+	if numRowsAffected == 0 {
+		// log.Errorf("Failed to insert the certificate record")
+		return cop.NewError(cop.DatabaseError, "Failed to insert the certificate record")
+	}
+
+	if numRowsAffected != 1 {
+		// log.Errorf("%d rows are affected, should be 1 row", numRowsAffected)
+		return cop.NewError(cop.DatabaseError, "%d rows are affected, should be 1 row", numRowsAffected)
+	}
+
+	return err
+}
+
+// GetCertificateByID gets a CertificateRecord indexed by id.
+func (d *CffslAccessor) GetCertificateByID(id string) (crs []CertRecord, err error) {
+	log.Debugf("DB: Get certificate by ID (%s)", id)
+	err = d.checkDB()
+	if err != nil {
+		return nil, err
+	}
+
+	err = d.db.Select(&crs, fmt.Sprintf(d.db.Rebind(selectSQL), sqlstruct.Columns(CertRecord{})), id)
+	if err != nil {
+		return nil, err
+	}
+
+	return crs, nil
+}
+
+// GetCertificate gets a CertificateRecord indexed by serial.
+func (d *CffslAccessor) GetCertificate(serial, aki string) (crs []certdb.CertificateRecord, err error) {
+	crs, err = d.accessor.GetCertificate(serial, aki)
+	if err != nil {
+		return nil, err
+	}
+	return crs, nil
+}
+
+// GetUnexpiredCertificates gets all unexpired certificate from db.
+func (d *CffslAccessor) GetUnexpiredCertificates() (crs []certdb.CertificateRecord, err error) {
+	crs, err = d.accessor.GetUnexpiredCertificates()
+	if err != nil {
+		return nil, err
+	}
+	return crs, err
+}
+
+// RevokeCertificateByID updates all certificates for a given ID and marks them revoked.
+func (d *CffslAccessor) RevokeCertificateByID(id string, reasonCode int) error {
+	err := d.checkDB()
+	if err != nil {
+		return err
+	}
+
+	var record = new(CertRecord)
+	record.ID = id
+	record.Reason = reasonCode
+
+	result, err := d.db.NamedExec(updateRevokeSQL, record)
+	if err != nil {
+		return err
+	}
+
+	numRowsAffected, err := result.RowsAffected()
+
+	if numRowsAffected == 0 {
+		// log.Error("Failed to revoke the certificate: certificate not found")
+		return cop.NewError(cop.DatabaseError, "Failed to revoke the certificate: certificate not found")
+	}
+
+	if numRowsAffected != 1 {
+		// log.Errorf("%d rows are affected, should be 1 row", numRowsAffected)
+		return cop.NewError(cop.DatabaseError, "%d rows are affected, should be 1 row", numRowsAffected)
+	}
+
+	return err
+}
+
+// RevokeCertificate updates a certificate with a given serial number and marks it revoked.
+func (d *CffslAccessor) RevokeCertificate(serial, aki string, reasonCode int) error {
+	err := d.accessor.RevokeCertificate(serial, aki, reasonCode)
+	return err
+}
+
+// InsertOCSP puts a new certdb.OCSPRecord into the db.
+func (d *CffslAccessor) InsertOCSP(rr certdb.OCSPRecord) error {
+	err := d.accessor.InsertOCSP(rr)
+	return err
+}
+
+// GetOCSP retrieves a certdb.OCSPRecord from db by serial.
+func (d *CffslAccessor) GetOCSP(serial, aki string) (ors []certdb.OCSPRecord, err error) {
+	ors, err = d.accessor.GetOCSP(serial, aki)
+	return ors, err
+}
+
+// GetUnexpiredOCSPs retrieves all unexpired certdb.OCSPRecord from db.
+func (d *CffslAccessor) GetUnexpiredOCSPs() (ors []certdb.OCSPRecord, err error) {
+	ors, err = d.accessor.GetUnexpiredOCSPs()
+	return ors, err
+}
+
+// UpdateOCSP updates a ocsp response record with a given serial number.
+func (d *CffslAccessor) UpdateOCSP(serial, aki, body string, expiry time.Time) error {
+	err := d.accessor.UpdateOCSP(serial, aki, body, expiry)
+	return err
+}
+
+// UpsertOCSP update a ocsp response record with a given serial number,
+// or insert the record if it doesn't yet exist in the db
+func (d *CffslAccessor) UpsertOCSP(serial, aki, body string, expiry time.Time) error {
+	err := d.accessor.UpsertOCSP(serial, aki, body, expiry)
+	return err
+}
