@@ -22,12 +22,16 @@ limitations under the License.
 package server
 
 import (
+	"github.com/cloudflare/cfssl/certdb"
 	"github.com/cloudflare/cfssl/log"
 	cop "github.com/hyperledger/fabric-cop/api"
 	"github.com/hyperledger/fabric-cop/cli/server/dbutil"
 	"github.com/hyperledger/fabric-cop/cli/server/spi"
 	"github.com/jmoiron/sqlx"
 )
+
+var certDBAccessor *CertDBAccessor
+var userRegistry *Accessor
 
 // NewUserRegistry abstracts out the user retreival
 func NewUserRegistry(typ string, config string) (spi.UserRegistry, error) {
@@ -62,7 +66,7 @@ func NewUserRegistry(typ string, config string) (spi.UserRegistry, error) {
 	dbAccessor := new(Accessor)
 	dbAccessor.SetDB(db)
 
-	CFG.UserRegistry = dbAccessor
+	userRegistry = dbAccessor
 
 	if !exists {
 		err := bootstrapDB()
@@ -72,4 +76,11 @@ func NewUserRegistry(typ string, config string) (spi.UserRegistry, error) {
 	}
 
 	return dbAccessor, nil
+}
+
+// CertificateAccessor extends CFSSL database APIs for Certificates table
+func CertificateAccessor(db *sqlx.DB) certdb.Accessor {
+	certDBAccess := NewCertDBAccessor(db)
+	certDBAccessor = certDBAccess
+	return certDBAccess
 }

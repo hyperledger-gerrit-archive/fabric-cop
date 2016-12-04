@@ -7,11 +7,11 @@ export PATH=$PATH:$GOPATH/bin
 go get github.com/axw/gocov/...
 go get github.com/AlekSi/gocov-xml
 
-PKGS=`go list github.com/hyperledger/fabric-cop/... | grep -v /vendor/`
+PKGS=`go list github.com/hyperledger/fabric-cop/... | grep -v vendor | grep -v idp | grep -v cli/server/dbutil`
 
 gocov test $PKGS | gocov-xml > coverage.xml
 
-} | tee /tmp/test.results
+} 2>&1 | tee /tmp/test.results
 echo "Finished running all tests"
 SC=0
 FAILURES=`awk '$1 != "ok" && $1 != "?"' /tmp/test.results`

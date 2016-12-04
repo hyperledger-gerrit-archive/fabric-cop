@@ -19,7 +19,6 @@ package server
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 
 	"github.com/cloudflare/cfssl/log"
 	cop "github.com/hyperledger/fabric-cop/api"
@@ -132,7 +131,7 @@ func (d *Accessor) LoginUserBasicAuth(user, pass string) (spi.User, error) {
 	userInfo := convertToUserInfo(&userRec)
 
 	if userRec.Pass == pass {
-		if userRec.State >= 0 && userRec.State < userRec.MaxEnrollments {
+		if (userRec.State >= 0 && userRec.State < userRec.MaxEnrollments) || (userRec.MaxEnrollments < 0) {
 			state := userRec.State + 1
 			res, err := d.db.Exec("UPDATE users SET state = ? WHERE (id = ?)", state, user)
 			if err != nil {
@@ -200,15 +199,11 @@ func (d *Accessor) InsertUser(user spi.UserInfo) error {
 	}
 
 	if numRowsAffected == 0 {
-		msg := "Failed to insert the user record"
-		log.Error(msg)
-		return cop.NewError(cop.UserStoreError, msg)
+		return cop.NewError(cop.UserStoreError, "Failed to insert the user record")
 	}
 
 	if numRowsAffected != 1 {
-		msg := fmt.Sprintf("%d rows are affected, should be 1 row", numRowsAffected)
-		log.Error(msg)
-		return cop.NewError(cop.UserStoreError, msg)
+		return cop.NewError(cop.UserStoreError, "%d rows are affected, should be 1 row", numRowsAffected)
 	}
 
 	log.Debugf("User %s inserted into database successfully", user.Name)
@@ -281,26 +276,11 @@ func (d *Accessor) UpdateField(id string, field int, value interface{}) error {
 	}
 
 	switch field {
-	case serialNumber:
-		log.Debug("Update serial number")
-		val := value.(string)
-		_, err = d.db.Exec("UPDATE users SET serial_number = ? WHERE (id = ?)", val, id)
-		if err != nil {
-			return err
-		}
-	case aki:
-		log.Debug("Update authority key idenitifier")
-		val := value.(string)
-		_, err = d.db.Exec("UPDATE users SET authority_key_identifier = ? WHERE (id = ?)", val, id)
-		if err != nil {
-			return err
-		}
 	case maxEnrollments:
 		log.Debug("Update max enrollments")
 		val := value.(int)
 		_, err = d.db.Exec("UPDATE users SET max_enrollments = ? WHERE (id = ?)", val, id)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 	case state:
@@ -308,11 +288,9 @@ func (d *Accessor) UpdateField(id string, field int, value interface{}) error {
 		val := value.(int)
 		_, err = d.db.Exec("UPDATE users SET state = ? WHERE (id = ?)", val, id)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 	default:
-		log.Error("DB: Specified field does not exist or cannot be updated")
 		return cop.NewError(cop.DatabaseError, "DB: Specified field does not exist or cannot be updated")
 	}
 
@@ -335,22 +313,6 @@ func (d *Accessor) GetField(id string, field int) (interface{}, error) {
 			return nil, err
 		}
 		return groupRec.Prekey, nil
-	case serialNumber:
-		log.Debug("Get serial number")
-		var userRec UserRecord
-		err = d.db.Get(&userRec, "SELECT serial_number FROM users WHERE (id = ?)", id)
-		if err != nil {
-			return nil, err
-		}
-		return userRec.SerialNumber, nil
-	case aki:
-		log.Debug("Get authority key idenitifier")
-		var userRec UserRecord
-		err = d.db.Get(&userRec, "SELECT authority_key_identifier FROM users WHERE (id = ?)", id)
-		if err != nil {
-			return nil, err
-		}
-		return userRec.AKI, nil
 	default:
 		log.Error("DB: Specified field does not exist or cannot be retrieved")
 		return nil, cop.NewError(cop.DatabaseError, "DB: Specified field does not exist or cannot be retrieved")
@@ -452,6 +414,7 @@ func convertToUserInfo(userRec *UserRecord) *spi.UserInfo {
 	userInfo.Name = userRec.Name
 	userInfo.Pass = userRec.Pass
 	userInfo.Type = userRec.Type
+	userInfo.Group = userRec.Group
 
 	var attributes []idp.Attribute
 	json.Unmarshal([]byte(userRec.Attributes), &attributes)
