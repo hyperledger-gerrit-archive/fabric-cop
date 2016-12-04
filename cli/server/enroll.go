@@ -17,20 +17,16 @@ limitations under the License.
 package server
 
 import (
-	"encoding/hex"
 	"errors"
 	"io/ioutil"
 	"net/http"
 
 	"github.com/cloudflare/cfssl/api"
 	"github.com/cloudflare/cfssl/cli"
-	"github.com/cloudflare/cfssl/cli/sign"
 	cerr "github.com/cloudflare/cfssl/errors"
 	"github.com/cloudflare/cfssl/log"
 	"github.com/cloudflare/cfssl/signer"
 	cop "github.com/hyperledger/fabric-cop/api"
-	"github.com/hyperledger/fabric-cop/lib/crypto"
-	"github.com/jmoiron/sqlx"
 )
 
 // enrollHandler for register requests
@@ -97,25 +93,6 @@ func (e *Enroll) Enroll(id string, token []byte, csrPEM []byte) ([]byte, cop.Err
 		return nil, signErr
 	}
 
-	serialNum, err := crypto.GetCertificateSerialNumber(cert)
-	if err != nil {
-		log.Error("Failed to get certificate serial number")
-	}
-
-	err = e.cfg.UserRegistery.UpdateField(id, serialNumber, serialNum.String())
-	if err != nil {
-		log.Error("Failed to update user registery")
-	}
-
-	authKeyID, err := crypto.GetCertificateAKI(cert)
-	if err != nil {
-		log.Error("Failed to get certificate serial number")
-	}
-
-	err = e.cfg.UserRegistery.UpdateField(id, aki, hex.EncodeToString(authKeyID))
-	if err != nil {
-		log.Error("Failed to update user registery")
-	}
 	return cert, nil
 }
 
@@ -124,19 +101,13 @@ func (e *Enroll) signKey(csrPEM []byte) ([]byte, cop.Error) {
 	var cfg cli.Config
 	cfg.CAFile = e.cfg.CACert
 	cfg.CAKeyFile = e.cfg.CAKey
-	db, err := sqlx.Open(e.cfg.DBdriver, e.cfg.DataSource)
-	s, err := sign.SignerFromConfigAndDB(cfg, db)
-	if err != nil {
-		log.Errorf("SignerFromConfig error: %s", err)
-		return nil, cop.WrapError(err, cop.CFSSL, "failed in SignerFromConfig")
-	}
 	req := signer.SignRequest{
 		// Hosts:   signer.SplitHosts(c.Hostname),
 		Request: string(csrPEM),
 		// Profile: c.Profile,
 		// Label:   c.Label,
 	}
-	cert, err := s.Sign(req)
+	cert, err := CFG.Signer.Sign(req)
 	if err != nil {
 		log.Errorf("Sign error: %s", err)
 		return nil, cop.WrapError(err, cop.CFSSL, "Failed in Sign")
