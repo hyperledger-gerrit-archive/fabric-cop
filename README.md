@@ -53,6 +53,10 @@ The COP client and server commands are what you will use.
 However, since COP is built on top of [CFSSL](https://github.com/cloudflare/cfssl) and CFSSL has its own CLI,
 you may issue any cfssl command with the `cop cfssl` command prefix.
 
+### COP server configuration options
+
+**max_enrollments (Default: 1)** - Allows you to specify how many times a user can use its one time password to enroll itself. Setting it to -1 will allow for unlimited enrollments.
+
 ### Initialize the COP server  
 
 Executing the following "COP" command will generate a private key and self-signed x509 certificate to start the
