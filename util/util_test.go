@@ -207,3 +207,11 @@ func TestFileExists(t *testing.T) {
 		t.Error("Failed does exist")
 	}
 }
+
+func TestGetEnrollmentID(t *testing.T) {
+	cert, _ := ioutil.ReadFile(getPath("ec.pem"))
+	_, err := GetEnrollmentIDFromPEM(cert)
+	if err != nil {
+		t.Fatalf("")
+	}
+}
