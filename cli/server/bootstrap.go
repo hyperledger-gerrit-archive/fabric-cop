@@ -104,13 +104,13 @@ func (b *Bootstrap) registerGroup(name string, parentName string) error {
 	log.Debugf("Registering affiliation group (%s) with parent (%s)", name, parentName)
 
 	var err error
-	_, err = b.cfg.UserRegistery.GetGroup(name)
+	_, err = userRegistry.GetGroup(name)
 	if err == nil {
 		log.Error("Group already registered")
 		return errors.New("Group already registered")
 	}
 
-	err = b.cfg.UserRegistery.InsertGroup(name, parentName)
+	err = userRegistry.InsertGroup(name, parentName)
 	if err != nil {
 		log.Error(err)
 	}

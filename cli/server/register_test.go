@@ -68,7 +68,7 @@ func prepRegister() error {
 	regCFG.Home = regPath
 	regCFG.DataSource = regCFG.Home + "/cop.db"
 
-	CFG.UserRegistery, err = NewUserRegistry(regCFG.DBdriver, regCFG.DataSource)
+	_, err = NewUserRegistry(regCFG.DBdriver, regCFG.DataSource)
 	if err != nil {
 		return err
 	}
