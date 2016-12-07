@@ -341,3 +341,15 @@ func TestGenerateUUID(t *testing.T) {
 		t.Error("UUID is not generated")
 	}
 }
+
+func TestGetCertAKI(t *testing.T) {
+	publicKeyBuff, err := ioutil.ReadFile("../../testdata/ecTest.pem")
+	if err != nil {
+		t.Fatalf("Cannot read EC Certificate from file system")
+	}
+	_, error := GetCertificateAKI(publicKeyBuff)
+
+	if error != nil {
+		t.Fatalf("Failed to get certificate AKI \t [%v]", error)
+	}
+}
