@@ -140,9 +140,9 @@ func startMain(args []string, c cli.Config) error {
 		cfg.DataSource = filepath.Join(cfg.Home, cfg.DataSource)
 	}
 
-	_, err = NewUserRegistry(cfg.DBdriver, cfg.DataSource)
+	// Initialize the user registry
+	err = InitUserRegistry(cfg)
 	if err != nil {
-		log.Errorf("Failed to create new user registery [error: %s]", err)
 		return err
 	}
 

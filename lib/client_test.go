@@ -22,8 +22,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -167,18 +165,6 @@ func testDoubleEnroll(c idp.ClientAPI, t *testing.T) {
 	_, err := c.Enroll(req)
 	if err == nil {
 		t.Error("Double enroll should have failed but passed")
-	}
-
-	msg := err.Error()
-	parts := strings.Split(msg, ":")
-	if len(parts) < 2 {
-		t.Errorf("Invalid error message (%s); only %d parts", msg, len(parts))
-	}
-
-	code := parts[0]
-	_, err2 := strconv.Atoi(code)
-	if err2 != nil {
-		t.Errorf("Invalid error message (%s); %s is not an integer; %s", msg, code, err2.Error())
 	}
 
 }

@@ -49,7 +49,7 @@ func prepBootstrap() (*Bootstrap, error) {
 	bootCFG.Home = bootPath
 	bootCFG.DataSource = bootCFG.Home + "/cop.db"
 
-	CFG.UserRegistery, err = NewUserRegistry(bootCFG.DBdriver, bootCFG.DataSource)
+	err = InitUserRegistry(bootCFG)
 	if err != nil {
 		return nil, err
 	}
