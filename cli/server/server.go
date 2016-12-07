@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -174,9 +173,9 @@ func startMain(args []string, c cli.Config) error {
 		cfg.DataSource = filepath.Join(cfg.Home, cfg.DataSource)
 	}
 
-	_, err = NewUserRegistry(cfg.DBdriver, cfg.DataSource)
+	// Initialize the user registry
+	err = InitUserRegistry(cfg)
 	if err != nil {
-		log.Errorf("Failed to create new user registery [error: %s]", err)
 		return err
 	}
 
@@ -300,14 +299,6 @@ func registerHandlers() {
 		}
 	}
 	log.Info("Handler set up complete.")
-}
-
-// v1APIPath prepends the V1 API prefix to endpoints not beginning with "/"
-func v1APIPath(path string) string {
-	if !strings.HasPrefix(path, "/") {
-		path = V1APIPrefix + path
-	}
-	return (&url.URL{Path: path}).String()
 }
 
 // httpBox implements http.FileSystem which allows the use of Box with a http.FileServer.
