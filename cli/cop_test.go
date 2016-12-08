@@ -18,12 +18,13 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	cop "github.com/hyperledger/fabric-cop/api"
-	server "github.com/hyperledger/fabric-cop/cli/server"
 	"github.com/hyperledger/fabric-cop/idp"
 )
 
@@ -36,12 +37,10 @@ type Admin struct {
 }
 
 const (
-	CERT     string = "../testdata/ec.pem"
-	KEY      string = "../testdata/ec-key.pem"
-	CFG      string = "../testdata/testconfig.json"
-	CSR      string = "../testdata/csr.json"
-	REG      string = "../testdata/registerrequest.json"
-	DBCONFIG string = "../testdata/enrolltest.json"
+	CFG             string = "../testdata/testconfig.json"
+	CSR             string = "../testdata/csr.json"
+	REG             string = "../testdata/registerrequest.json"
+	ClientTLSConfig string = "cop_client.json"
 )
 
 var (
@@ -51,32 +50,19 @@ var (
 
 var serverStarted bool
 var serverExitCode = 0
-
-const (
-	enrollPath = "/tmp/enrolltest"
-)
+var dir string
 
 // Test the server start command
 func TestStartServer(t *testing.T) {
 	fmt.Println("running TestStartServer ...")
-	os.RemoveAll("/tmp/enrollTest")
 	rtn := startServer()
 	if rtn != 0 {
 		t.Errorf("Failed to start server with return code: %d", rtn)
 		t.FailNow()
 	}
+	clientConfig := filepath.Join(dir, ClientTLSConfig)
+	os.Link("../testdata/cop_client.json", clientConfig)
 	fmt.Println("passed TestStartServer")
-}
-
-func TestRegister(t *testing.T) {
-	fmt.Println("running TestRegister ...")
-	r := server.NewRegisterUser()
-	_, err := r.RegisterUser(testEnroll.User, testEnroll.Type, testEnroll.Group, testEnroll.Attributes, Registrar.User)
-	if err != nil {
-		fmt.Printf("RegisterUser failed: %s\n", err)
-		t.Errorf("Failed to register user: %s, err: %s", testEnroll.User, err)
-	}
-	fmt.Println("passed TestRegister")
 }
 
 func TestEnroll(t *testing.T) {
@@ -87,6 +73,16 @@ func TestEnroll(t *testing.T) {
 		t.Errorf("Failed to enroll with return code: %d", rtn)
 	}
 	fmt.Println("passed TestEnroll")
+}
+
+func TestRegister(t *testing.T) {
+	fmt.Println("running TestRegister ...")
+	rtn := register(REG)
+	if rtn != 0 {
+		fmt.Printf("Register failed: rtn=%d\n", rtn)
+		t.Errorf("Failed to register with return code: %d", rtn)
+	}
+	fmt.Println("passed TestRegister")
 }
 
 func TestReenroll(t *testing.T) {
@@ -117,10 +113,16 @@ func TestBogusCommand(t *testing.T) {
 }
 
 func startServer() int {
+	var err error
+	dir, err = ioutil.TempDir("", "cop")
+	if err != nil {
+		fmt.Printf("Failed to create temp directory [error: %s]", err)
+		return serverExitCode
+	}
+
 	if !serverStarted {
 		serverStarted = true
 		fmt.Println("starting COP server ...")
-		os.Setenv("COP_HOME", enrollPath)
 		go runServer()
 		time.Sleep(3 * time.Second)
 		fmt.Println("COP server started")
@@ -132,20 +134,20 @@ func startServer() int {
 
 func runServer() {
 	os.Setenv("COP_DEBUG", "true")
-	os.Setenv("COP_HOME", enrollPath)
-	serverExitCode = COPMain([]string{"cop", "server", "start", "-ca", CERT, "-ca-key", KEY, "-config", CFG, "-db-config", DBCONFIG})
+	os.Setenv("COP_HOME", dir)
+	serverExitCode = COPMain([]string{"cop", "server", "start", "-config", CFG})
 }
 
 func enroll(user, pass string) int {
 	fmt.Printf("enrolling user '%s' with password '%s' ...\n", user, pass)
-	rtn := COPMain([]string{"cop", "client", "enroll", user, pass, "http://localhost:8888", CSR})
+	rtn := COPMain([]string{"cop", "client", "enroll", user, pass, "https://localhost:8888", CSR})
 	fmt.Printf("enroll result is '%d'\n", rtn)
 	return rtn
 }
 
 func reenroll() int {
 	fmt.Println("reenrolling ...")
-	rtn := COPMain([]string{"cop", "client", "reenroll", "http://localhost:8888", CSR})
+	rtn := COPMain([]string{"cop", "client", "reenroll", "https://localhost:8888", CSR})
 	fmt.Printf("reenroll result is '%d'\n", rtn)
 	return rtn
 }
@@ -159,7 +161,7 @@ func cfssl() int {
 
 func register(file string) int {
 	fmt.Printf("register file '%s' ...\n", file)
-	rtn := COPMain([]string{"cop", "client", "register", file, "http://localhost:8888", "loglevel=0"})
+	rtn := COPMain([]string{"cop", "client", "register", file, "https://localhost:8888", "loglevel=0"})
 	fmt.Printf("register result is '%d'\n", rtn)
 	return rtn
 }
