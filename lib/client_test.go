@@ -85,7 +85,7 @@ func testRegister(c *Client, t *testing.T) {
 
 	id, err := c.Enroll(enrollReq)
 	if err != nil {
-		t.Errorf("testRegister enroll of admin failed: %s", err)
+		t.Fatalf("testRegister enroll of admin failed: %s", err)
 	}
 
 	// Register as admin
@@ -268,7 +268,7 @@ func startServer() int {
 		fmt.Println("starting COP server ...")
 		os.Setenv("COP_HOME", HOME)
 		go runServer()
-		time.Sleep(3 * time.Second)
+		time.Sleep(5 * time.Second)
 		fmt.Println("COP server started")
 	} else {
 		fmt.Println("COP server already started")
