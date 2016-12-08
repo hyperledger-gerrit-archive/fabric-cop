@@ -31,14 +31,7 @@ import (
 )
 
 const (
-	CERT     string = "../testdata/ec.pem"
-	KEY      string = "../testdata/ec-key.pem"
-	CFG      string = "../testdata/cop.json"
-	CSR      string = "../testdata/csr.json"
-	REG      string = "../testdata/registerrequest.json"
-	CONFIG   string = "../../testdata/cop.json"
-	DBCONFIG string = "../testdata/enrolltest.json"
-	HOME     string = "/tmp/client"
+	HOME string = "/tmp/client"
 )
 
 var serverStarted bool
@@ -59,6 +52,9 @@ func prepTest() {
 func TestAllClient(t *testing.T) {
 	prepTest()
 	startServer()
+
+	os.Link("../testdata/cop_client.json", HOME+"/cop_client.json")
+
 	c := getClient()
 
 	testRegister(c, t)
@@ -225,7 +221,7 @@ func testCapabilities(c *Client, t *testing.T) {
 }
 
 func TestDeserializeIdentity(t *testing.T) {
-	config := `{"serverURL":"http://localhost:8888"}`
+	config := `{"serverURL":"https://localhost:8888"}`
 	c, err := NewClient(config)
 	if err != nil {
 		t.Error("Failed to create client object")
@@ -254,7 +250,7 @@ func TestSendBadPost(t *testing.T) {
 }
 
 func getClient() *Client {
-	copServer := `{"serverURL":"http://localhost:8888"}`
+	copServer := `{"serverURL":"https://localhost:8888"}`
 	c, err := NewClient(copServer)
 	if err != nil {
 		log.Errorf("getClient failed: %s", err)
@@ -279,5 +275,5 @@ func startServer() int {
 func runServer() {
 	os.Setenv("COP_DEBUG", "true")
 	os.Setenv("COP_HOME", HOME)
-	server.Start("../testdata")
+	server.Start("../testdata", "testconfig.json")
 }

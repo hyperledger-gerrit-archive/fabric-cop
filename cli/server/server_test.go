@@ -33,18 +33,12 @@ import (
 )
 
 const (
-	homeDir    = "/tmp/home"
-	dataSource = "/tmp/home/server.db"
-	CERT       = "../../testdata/ec.pem"
-	KEY        = "../../testdata/ec-key.pem"
-	CONFIG     = "../../testdata/testconfig.json"
-	DBCONFIG   = "../../testdata/cop-db.json"
-	CSR        = "../../testdata/csr.csr"
+	homeDir = "/tmp/home"
+	CFGFile = "testconfig2.json"
 )
 
 var serverStarted bool
 var serverExitCode = 0
-var cfg *Config
 
 func createServer() *Server {
 	s := new(Server)
@@ -68,12 +62,11 @@ func startServer() int {
 }
 
 func runServer() {
-	Start("../../testdata")
-	cfg = CFG
+	Start("../../testdata", CFGFile)
 }
 
 func TestPostgresFail(t *testing.T) {
-	_, err := dbutil.GetDB("postgres", "dbname=cop sslmode=disable")
+	_, _, err := dbutil.NewUserRegistryPostgres("dbname=cop sslmode=disable", nil)
 	if err == nil {
 		t.Error("No postgres server running, this should have failed")
 	}
@@ -81,8 +74,9 @@ func TestPostgresFail(t *testing.T) {
 
 func TestRegisterUser(t *testing.T) {
 	startServer()
+	os.Link("../../testdata/cop_client2.json", homeDir+"/cop_client.json")
 
-	copServer := `{"serverURL":"http://localhost:8888"}`
+	copServer := `{"serverURL":"https://localhost:8888"}`
 	c, _ := lib.NewClient(copServer)
 
 	enrollReq := &idp.EnrollmentRequest{
@@ -124,7 +118,7 @@ func TestRegisterUser(t *testing.T) {
 }
 
 func TestMisc(t *testing.T) {
-	copServer := `{"serverURL":"http://localhost:8888"}`
+	copServer := `{"serverURL":"https://localhost:8888"}`
 	c, err := lib.NewClient(copServer)
 	if err != nil {
 		t.Errorf("TestMisc.NewClient failed: %s", err)
@@ -145,7 +139,7 @@ func TestMisc(t *testing.T) {
 }
 
 func TestEnrollUser(t *testing.T) {
-	copServer := `{"serverURL":"http://localhost:8888"}`
+	copServer := `{"serverURL":"https://localhost:8888"}`
 	c, _ := lib.NewClient(copServer)
 
 	req := &idp.EnrollmentRequest{
@@ -177,7 +171,7 @@ func TestEnrollUser(t *testing.T) {
 }
 
 func TestRevoke(t *testing.T) {
-	copServer := `{"serverURL":"http://localhost:8888"}`
+	copServer := `{"serverURL":"https://localhost:8888"}`
 	c, _ := lib.NewClient(copServer)
 
 	req := &idp.EnrollmentRequest{
@@ -221,7 +215,7 @@ func TestRevoke(t *testing.T) {
 func TestMaxEnrollment(t *testing.T) {
 	CFG.UsrReg.MaxEnrollments = 2
 
-	copServer := `{"serverURL":"http://localhost:8888"}`
+	copServer := `{"serverURL":"https://localhost:8888"}`
 	c, _ := lib.NewClient(copServer)
 
 	regReq := &idp.RegistrationRequest{
@@ -271,25 +265,6 @@ func TestMaxEnrollment(t *testing.T) {
 
 }
 
-func TestCreateHome(t *testing.T) {
-	s := createServer()
-	t.Log("Test Creating Home Directory")
-	os.Unsetenv("COP_HOME")
-	os.Setenv("HOME", "/tmp/test")
-
-	_, err := s.CreateHome()
-	if err != nil {
-		t.Errorf("Failed to create home directory, error: %s", err)
-	}
-
-	if _, err := os.Stat(homeDir); err != nil {
-		if os.IsNotExist(err) {
-			t.Error("Failed to create home directory")
-		}
-	}
-
-}
-
 func TestEnroll(t *testing.T) {
 	e := NewEnrollUser()
 
@@ -299,7 +274,7 @@ func TestEnroll(t *testing.T) {
 }
 
 func testUnregisteredUser(e *Enroll, t *testing.T) {
-	copServer := `{"serverURL":"http://localhost:8888"}`
+	copServer := `{"serverURL":"https://localhost:8888"}`
 	c, _ := lib.NewClient(copServer)
 
 	req := &idp.EnrollmentRequest{
@@ -315,7 +290,7 @@ func testUnregisteredUser(e *Enroll, t *testing.T) {
 }
 
 func testIncorrectToken(e *Enroll, t *testing.T) {
-	copServer := `{"serverURL":"http://localhost:8888"}`
+	copServer := `{"serverURL":"https://localhost:8888"}`
 	c, _ := lib.NewClient(copServer)
 
 	req := &idp.EnrollmentRequest{
@@ -331,7 +306,7 @@ func testIncorrectToken(e *Enroll, t *testing.T) {
 }
 
 func testEnrollingUser(e *Enroll, t *testing.T) {
-	copServer := `{"serverURL":"http://localhost:8888"}`
+	copServer := `{"serverURL":"https://localhost:8888"}`
 	c, _ := lib.NewClient(copServer)
 
 	req := &idp.EnrollmentRequest{
@@ -399,6 +374,25 @@ func TestUserRegistry(t *testing.T) {
 	err = InitUserRegistry(&Config{LDAP: &ldap.Config{}})
 	if err == nil {
 		t.Error("Trying to LDAP with no URL; it should have failed but passed")
+	}
+
+}
+
+func TestCreateHome(t *testing.T) {
+	s := createServer()
+	t.Log("Test Creating Home Directory")
+	os.Unsetenv("COP_HOME")
+	os.Setenv("HOME", "/tmp/test")
+
+	_, err := s.CreateHome()
+	if err != nil {
+		t.Errorf("Failed to create home directory, error: %s", err)
+	}
+
+	if _, err := os.Stat(homeDir); err != nil {
+		if os.IsNotExist(err) {
+			t.Error("Failed to create home directory")
+		}
 	}
 
 }
