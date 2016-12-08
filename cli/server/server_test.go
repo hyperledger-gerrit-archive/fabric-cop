@@ -305,12 +305,13 @@ func TestRevokeCertificatesByID(t *testing.T) {
 }
 
 func TestGetField(t *testing.T) {
-	_, err := userRegistry.GetField("bank_a", prekey)
-	if err != nil {
-		t.Errorf("Error occured while getting prekey field for group 'bank_a', [error: %s]", err)
-	}
-
-	_, err = userRegistry.GetField("testUser2", 5)
+	/*
+		_, err := userRegistry.GetField("bank_a", prekey)
+		if err != nil {
+			t.Errorf("Error occured while getting prekey field for group 'bank_a', [error: %s]", err)
+		}
+	*/
+	_, err := userRegistry.GetField("testUser2", 5)
 	if err == nil {
 		t.Errorf("Error should occured while getting unsupported field, [error: %s]", err)
 	}

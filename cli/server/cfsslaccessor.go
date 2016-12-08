@@ -25,7 +25,7 @@ import (
 	certsql "github.com/cloudflare/cfssl/certdb/sql"
 	"github.com/cloudflare/cfssl/log"
 	cop "github.com/hyperledger/fabric-cop/api"
-	"github.com/hyperledger/fabric-cop/lib/crypto"
+	"github.com/hyperledger/fabric-cop/util"
 	"github.com/kisielk/sqlstruct"
 
 	"github.com/jmoiron/sqlx"
@@ -81,22 +81,20 @@ func (d *CffslAccessor) SetDB(db *sqlx.DB) {
 
 // InsertCertificate puts a CertificateRecord into db.
 func (d *CffslAccessor) InsertCertificate(cr certdb.CertificateRecord) error {
-	pemBytes := []byte(cr.PEM)
-	cert, err := crypto.GetCertificate(pemBytes)
+
+	log.Debug("DB: Insert Certificate")
+
+	err := d.checkDB()
 	if err != nil {
 		return err
 	}
-	subject := cert.Subject.CommonName
-
-	log.Debugf("DB: Insert Certificate for user %s", subject)
-
-	err = d.checkDB()
+	id, err := util.GetEnrollmentIDFromPEM([]byte(cr.PEM))
 	if err != nil {
 		return err
 	}
 
 	var record = new(CertRecord)
-	record.ID = subject
+	record.ID = id
 	record.Serial = cr.Serial
 	record.AKI = cr.AKI
 	record.CALabel = cr.CALabel
