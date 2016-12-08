@@ -86,18 +86,25 @@ func (h *revokeHandler) Handle(w http.ResponseWriter, r *http.Request) error {
 
 		_, err := userRegistry.GetUser(req.Name)
 		if err != nil {
-			log.Warningf("Revoke failed: %s", err)
+			log.Warningf("Revoke failed to get user: %s", err)
 			return notFound(w, err)
 		}
 
 		err = userRegistry.UpdateField(req.Name, state, -1)
 		if err != nil {
-			log.Warningf("Revoke failed: %s", err)
+			log.Warningf("Revoke failed to update state field: %s", err)
+			return dbErr(w, err)
+		}
+		_, err = certDBAccessor.RevokeCertificatesByID(req.Name, req.Reason)
+		if err != nil {
+			log.Warningf("Revoke failed to update DB: %s", err)
 			return dbErr(w, err)
 		}
 	} else {
 		return badRequest(w, errors.New("either Name or Serial and AKI are required for a revoke request"))
 	}
+
+	// TODO: Add all ll certs
 
 	log.Debug("Revoke was successful: %+v", req)
 
