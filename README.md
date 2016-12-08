@@ -55,7 +55,9 @@ you may issue any cfssl command with the `cop cfssl` command prefix.
 
 ### COP server configuration options
 
-**max_enrollments (Default: 1)** - Allows you to specify how many times a user can use its one time password to enroll itself. Setting it to 0 will allow for unlimited enrollments.
+**tls_disable (Default: false)** - Setting to true will disable TLS
+
+**max_enrollments (Default: 0)** - Allows you to specify how many times a user can use its one time password to enroll itself. Default is 0, allows for unlimited enrollments.
 
 ### Initialize the COP server  
 
@@ -95,15 +97,107 @@ Likewise, these are the secure choices for RSA modulus:
 | 2048      | 2048 | sha256WithRSAEncryption |
 | 4096      | 4096 | sha512WithRSAEncryption |
 
+### TLS/SSL configuration - Client & COP Server
+
+The steps below should be followed to set up a secure connection between client and server.
+
+1. The COP server should be started with the following options set in the COP configuration file. The **tls_cert** and **tls_key** are used to set up the TLS protocol. The **mutual_tls_ca** requires that client certificates be signed by the specified CA and client is required to send its certificate. The configuration file for the server should contain the following:
+```
+...
+"tls_cert":"tls_certificate.pem",
+"tls_key":"tls_key.pem",
+"mutual_tls_ca":"CA_root_cert.pem",
+...
+```
+
+2. On client side, a configuration file (cop_client.json) should be created as seen below and placed in the client home directory. The **ca_files** option is the set of root certificate authorities that clients uses when verifying server certificates. The **client** option contains one or more certificate chains to present to the other side of the connection.
+```
+{
+"ca_files":["CA_root_cert.pem"],
+"client":[{"keyfile":"client-key.pem","certfile":"client.pem"}]
+}
+```
+
+Once all the certificates and key have been properly configured on both client and server a secure connection should be established.
+
+### TLS configuration - Database & Server
+
+#### Postgres
+
+When specifying the connection string for the Postgres database in the server configuration file, we must indicate that we wish to use a secure connection. The connection string should be set as indicated below.
+
+```
+"driver":"postgres",
+"data_source":"host=localhost port=5432 user=Username password=Password dbname=cop sslmode=verify-full",
+```
+**sslmode** - Enable SSL.
+  - **verify-full** - Always SSL (verify that the certification presented by the Postgres server was signed by a trusted CA and the Postgres server host name matches the one in the certificate).
+
+We also need to set the TLS configuration in the COP server config file. If the database server requires client authentication that a client cert and key file needs to be provided. The following should be present in the COP server config:
+
+```
+"tls":{
+  ...
+  "db_client":{
+    "ca_files":["CA.pem"],
+    "client":[{"keyfile":"client-key.pem","certfile":"client-cert.pem"}]
+  }
+},
+```
+
+**ca_files** - The location of the root certificate file.
+
+**certfile** - Client certificate file.
+
+**keyfile** - Client key file.
+
+#### MySQL
+
+When specifying the connection string for the MySQL database in the server configuration file, we must indicate that we wish to use a secure connection. The connection string should be set with the **tls=custom** parameter as indicated below.
+
+```
+...
+"driver":"mysql",
+"data_source":"root:rootpw@tcp(localhost:3306)/cop?parseTime=true&tls=custom",
+...
+```
+
+In the configuration file for the COP server, we need to define the elements below to establish a secure connection between COP server and MySQL server. If the database server requires client authentication that a client cert and key file needs to be provided.
+
+```
+"tls":{
+  ...
+  "db_client":{
+    "ca_files":["CA.pem"],
+    "client":[{"keyfile":"client-key.pem","certfile":"client-cert.pem"}]
+  }
+},
+```
+
+**ca_files** - The location of the root certificate file.
+
+**certfile** - Client certificate file.
+
+**keyfile** - Client key file.
+
 
 ### Start the COP server
 
 Execute the following commands to start the COP server.  If you would like to specify debug-level logging,
 set the `COP_DEBUG` environment variable to `true`.  And if you would like to run this in the background, append the "&" character to the command.
 
+In cop.json, specify the following properties. They define where the CA certificate and CA key are stored.
+
+```
+"ca_cert":"../testdata/cop-cert.pem ",
+"ca_key":"../testdata/cop-key.pem",
+```
+
+Run the following command to start COP server:
+
 ```
 # cd $COP/bin
-# ./cop server start -ca ../testdata/cop-cert.pem -ca-key ../testdata/cop-key.pem -config ../testdata/cop.json
+# ./cop server start -config ../testdata/cop.json
 ```
 
 It is now listening on localhost port 8888.
@@ -140,7 +234,6 @@ key is used to authenticate to the COP server.
 ```
 
 Note that this updates the enrollment material in the `$COP_HOME/client.json` file.
-
 
 ### Register a new user
 
@@ -219,7 +312,7 @@ See `COP/testdata/testconfig-ldap.json` for the complete configuration file with
 
 ##### When LDAP is configured, attribute retrieval works as follows:
 
-   * A client SDK sends a request for a batch of tcerts *with one or more attributes*to the COP server.  
+   * A client SDK sends a request for a batch of tcerts **with one or more attributes** to the COP server.  
    * The COP server receives the tcert request and does as follows:
        * extracts the enrollment ID from the token in the authorization header (after validating the token);
        * does an LDAP search/query to the LDAP server, requesting all of the attribute names received in the tcert request;
@@ -260,7 +353,7 @@ cop.json
 ```
 ...
 "driver":"postgres",
-"data_source":"host=localhost port=5432 user=Username password=Password dbname=cop sslmode=disable",
+"data_source":"host=localhost port=5432 user=Username password=Password dbname=cop",
 ...
 ```
 
@@ -276,11 +369,11 @@ cop.json
 ```
 ...
 "driver":"mysql",
-"data_source":"root:root@tcp(localhost:3306)/cop?parseTime=true",
+"data_source":"root:rootpw@tcp(localhost:3306)/cop?parseTime=true&tls=custom",
 ...
 ```
 
-Change the host to reflect where your database is located. The database is specified after the '/', specify the database you would like to connect to. Default port is used if none is specified.
+Change the host to reflect where your database is located. Change "root" and "rootpw" to the username and password you would like to use to connec to the database. The database is specified after the '/', specify the database you would like to connect to. Default port is used if none is specified.
 
 Once your proxy, COP servers, and database servers are all running you can have your clients direct traffic to the proxy server which will load balance and direct traffic to the appropriate COP server which will read/write from the database.  
 
@@ -294,3 +387,66 @@ WARNING: You must first stop the COP server which you started above; otherwise, 
 # cd $COP
 # make unit-tests
 ```
+
+## Appendix
+
+### Postgres SSL Configuration
+
+**Basic instructions for configuring SSL on Postgres server:**
+1. In postgresql.conf, uncomment SSL and set to "on" (SSL=on)
+2. Place Certificate and Key files Postgress data directory.
+
+Instructions for generating self-signed certificates for: https://www.postgresql.org/docs/9.1/static/ssl-tcp.html
+
+Note: Self-signed certificates are for testing purposes and should not be used in a production environment
+
+**Postgres Server - Require Client Certificates**
+1. Place certificates of the certificate authorities (CAs) you trust in the file root.crt in the Postgres data directory
+2. In postgresql.conf, set "ssl_ca_file" to point to the root cert of client (CA cert)
+3. Set the clientcert parameter to 1 on the appropriate hostssl line(s) in pg_hba.conf.
+
+For more details on configuring SSL on the Postgres server, please refer to the following Postgres documentation: https://www.postgresql.org/docs/9.4/static/libpq-ssl.html
+
+
+### MySQL SSL Configuration
+**Basic instructions for configuring SSL on MySQL server:**
+1. Open or create my.cnf file for the server. Add or un-comment the lines below in [mysqld] section. These should point to the key and certificates for the server, and the root CA cert.
+
+Instruction on creating server and client side certs: http://dev.mysql.com/doc/refman/5.7/en/creating-ssl-files-using-openssl.html
+
+[mysqld]
+ssl-ca=ca-cert.pem
+ssl-cert=server-cert.pem
+ssl-key=server-key.pem
+
+Can run the following query to confirm SSL has been enabled.
+
+mysql> SHOW GLOBAL VARIABLES LIKE 'have_%ssl';
+
+Should see:
+```
++---------------+-------+
+| Variable_name | Value |
++---------------+-------+
+| have_openssl  | YES   |
+| have_ssl      | YES   |
++---------------+-------+
+```
+
+2. After the server-side SSL configuration is finished, the next step is to create a user who has a privilege to access the MySQL server over SSL. For that, log in to the MySQL server, and type:
+
+mysql> GRANT ALL PRIVILEGES ON *.* TO 'ssluser'@'%' IDENTIFIED BY 'password' REQUIRE SSL;
+mysql> FLUSH PRIVILEGES;
+
+If you want to give a specific ip address from which the user will access the server change the '%' to the specific ip address.
+
+**MySQL Server - Require Client Certificates**
+Options for secure connections are similar to those used on the server side.
+
+ssl-ca identifies the Certificate Authority (CA) certificate. This option, if used, must specify the same certificate used by the server.
+ssl-cert identifies the client public key certificate.
+ssl-key identifies the client private key.
+
+Suppose that you want to connect using an account that has no special encryption requirements or was created using a GRANT statement that includes the REQUIRE SSL option. As a recommended set of secure-connection options, start the MySQL server with at least --ssl-cert and --ssl-key, and invoke the COP server with **ca_files** option set in the COP server file.
+
+To require that a client certificate also be specified, create the account using the REQUIRE X509 option. Then the client must also specify the proper client key and certificate files or the MySQL server will reject the connection. CA cert, client cert, and client key are all required for the COP server.
