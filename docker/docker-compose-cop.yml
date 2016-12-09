@@ -1,5 +1,5 @@
 cop:
-   image: fabric-cop:latest
+   image: hyperledger/fabric-cop
    ports:
      - "8888:8888"
    environment:
@@ -12,7 +12,7 @@ cop:
    command: sh -c 'cop server start -ca ~/.cop/$CA_CERTIFICATE -ca-key ~/.cop/$CA_KEY_CERTIFICATE -config /config/$COP_CONFIG -address "0.0.0.0"'
 
 admin-client:
-   image: fabric-cop:latest
+   image: hyperledger/fabric-cop
    environment:
      - CSR_CONFIG=${CSR_CONFIG}
    volumes:
@@ -23,7 +23,7 @@ admin-client:
      - cop
 
 sdk-client:
-   image: fabric-cop:latest
+   image: hyperledger/fabric-cop
    environment:
      - CSR_CONFIG=${CSR_CONFIG}
    volumes:
@@ -34,7 +34,7 @@ sdk-client:
      - cop
 
 bob-client:
-   image: fabric-cop:latest
+   image: hyperledger/fabric-cop
    environment:
      - CSR_CONFIG=${CSR_CONFIG}
    volumes:

@@ -1,0 +1,108 @@
+db:
+   image: postgres
+   environment:
+     - POSTGRES_PASSWORD=mysecretpassword
+     - POSTGRES_USER=cop_admin
+   ports:
+     - "5432:5432"
+   container_name: db
+
+cop0:
+   image: hyperledger/fabric-cop
+   ports:
+     - "8888:8888"
+   environment:
+     - CA_CERTIFICATE=${CA_CERTIFICATE}
+     - CA_KEY_CERTIFICATE=${CA_KEY_CERTIFICATE}
+     - COP_CONFIG=${COP_PSQL_CONFIG}
+   volumes:
+     - /config:/var/hyperledger/cop_config
+     - /root/.cop:/var/hyperledger/fabric/.cop
+   command: sh -c 'sleep 5; cop server start -ca ~/.cop/$$CA_CERTIFICATE -ca-key ~/.cop/$$CA_KEY_CERTIFICATE -config /config/$$COP_CONFIG -address "0.0.0.0"'
+   links:
+     - db:db
+   volumes_from:
+     - db
+   container_name: cop0
+
+cop1:
+   image: hyperledger/fabric-cop
+   ports:
+     - "8887:8888"
+   environment:
+     - CA_CERTIFICATE=${CA_CERTIFICATE}
+     - CA_KEY_CERTIFICATE=${CA_KEY_CERTIFICATE}
+     - COP_CONFIG=${COP_PSQL_CONFIG}
+   volumes:
+     - /config:/var/hyperledger/cop_config
+     - /root/.cop:/var/hyperledger/fabric/.cop
+   command: sh -c 'sleep 5; cop server start -ca ~/.cop/$$CA_CERTIFICATE -ca-key ~/.cop/$$CA_KEY_CERTIFICATE -config /config/$$COP_CONFIG -address "0.0.0.0"'
+   links:
+     - db:db
+   volumes_from:
+     - db
+   container_name: cop1
+
+cop2:
+   image: hyperledger/fabric-cop
+   ports:
+     - "8886:8888"
+   environment:
+     - CA_CERTIFICATE=${CA_CERTIFICATE}
+     - CA_KEY_CERTIFICATE=${CA_KEY_CERTIFICATE}
+     - COP_CONFIG=${COP_PSQL_CONFIG}
+   volumes:
+     - /config:/var/hyperledger/cop_config
+     - /root/.cop:/var/hyperledger/fabric/.cop
+   command: sh -c 'sleep 5; cop server start -ca ~/.cop/$$CA_CERTIFICATE -ca-key ~/.cop/$$CA_KEY_CERTIFICATE -config /config/$$COP_CONFIG -address "0.0.0.0"'
+   links:
+     - db:db
+   volumes_from:
+     - db
+   container_name: cop2
+
+haproxy:
+   build: ./haproxy
+   ports:
+     - "8880:8888"
+   links:
+     - cop0:cop0
+     - cop1:cop1
+     - cop2:cop2
+   container_name: haproxy
+
+admin-client:
+   image: hyperledger/fabric-cop
+   environment:
+     - CSR_CONFIG=${CSR_CONFIG}
+   volumes:
+     - /config:/var/hyperledger/cop_config
+     - /root/.cop:/var/hyperledger/fabric/.cop
+   command: sh -c "sleep 10;cop client enroll admin adminpw http://haproxy:8888 /config/$$CSR_CONFIG"
+   links:
+     - haproxy:haproxy
+   container_name: admin-client
+
+bob-client:
+   image: hyperledger/fabric-cop
+   environment:
+     - CSR_CONFIG=${CSR_CONFIG}
+   volumes:
+     - /config:/var/hyperledger/cop_config
+     - /root/.cop:/var/hyperledger/fabric/.cop
+   command: sh -c "sleep 11;cop client enroll admin adminpw http://haproxy:8888 /config/$$CSR_CONFIG"
+   links:
+     - haproxy:haproxy
+   container_name: bob-client
+
+sdk-client:
+   image: hyperledger/fabric-cop
+   environment:
+     - CSR_CONFIG=${CSR_CONFIG}
+   volumes:
+     - /config:/var/hyperledger/cop_config
+     - /root/.cop:/var/hyperledger/fabric/.cop
+   command: sh -c "sleep 12;cop client enroll admin adminpw http://haproxy:8888 /config/$$CSR_CONFIG"
+   links:
+     - haproxy:haproxy
+   container_name: sdk-client

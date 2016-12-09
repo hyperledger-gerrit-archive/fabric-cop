@@ -99,6 +99,11 @@ build/image/runtime/payload:	build/docker/busybox
 
 build/image/%/payload:
 	mkdir -p $@
+	cp images/cop/cop.json $@/cop.json
+	cp images/cop/cop-psql.json $@/cop-psql.json
+	cp images/cop/csr.json $@/csr.json
+	cp images/cop/ec.pem $@/ec.pem
+	cp images/cop/ec-key.pem $@/ec-key.pem
 	cp $^ $@
 
 build/image/cop/$(DUMMY): Makefile build/image/cop/payload

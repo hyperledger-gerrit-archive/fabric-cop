@@ -2,5 +2,18 @@ FROM hyperledger/fabric-cop-runtime:_TAG_
 ENV COP_HOME /etc/hyperledger/fabric-cop
 RUN mkdir -p /etc/hyperledger/fabric-cop
 COPY payload/cop /usr/local/bin
+
+# Copy the configuration files
+COPY payload/cop.json /config/cop.json
+COPY payload/cop-psql.json /config/cop-psql.json
+COPY payload/csr.json /config/csr.json
+
+# Copy the same certificates that are currently hardcoded into the peers
+#RUN mkdir -p /root/.cop
+COPY payload/ec-key.pem /.cop/ec-key.pem
+COPY payload/ec.pem /.cop/ec.pem
+COPY payload/ec-key.pem /root/.cop/ec-key.pem
+COPY payload/ec.pem /root/.cop/ec.pem
+
 EXPOSE 8888
 CMD cop

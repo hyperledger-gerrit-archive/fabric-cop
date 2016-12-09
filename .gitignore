@@ -5,3 +5,4 @@ testdata/client.json
 *.csr
 *.der
 coverage.xml
+*.sw*
