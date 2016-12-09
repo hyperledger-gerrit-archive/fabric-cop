@@ -1,0 +1,16 @@
+FROM hyperledger/fabric-baseimage:_TAG_
+#FROM fabric-cop:_TAG_
+RUN mkdir -p /var/hyperledger/fabric/.cop
+RUN mkdir -p /config
+COPY cop $GOPATH/bin/
+
+# Copy the configuration files
+COPY cop.json /config/cop.json
+COPY cop-psql.json /config/cop-psql.json
+COPY csr.json /config/csr.json
+
+# Copy the same certificates that are currently hardcoded into the peers
+COPY ec-key.pem /root/.cop/ec-key.pem
+COPY ec.pem /root/.cop/ec.pem
+
+WORKDIR $GOPATH/src/github.com/hyperledger/fabric-cop
