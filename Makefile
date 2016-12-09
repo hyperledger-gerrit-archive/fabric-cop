@@ -23,6 +23,15 @@
 #   - cop - builds the cop executable
 #   - unit-tests - Performs checks first and runs the go-test based unit tests
 #   - checks - runs all check conditions (license, format, imports, lint and vet)
+#PROJECT_NAME   = hyperledger/fabric-cop
+PROJECT_NAME   = fabric-cop
+BASE_VERSION   = 0.2.1
+PROJECT_VERSION=$(BASE_VERSION)
+
+ARCH=$(shell uname -m)
+
+DOCKER_TAG=$(ARCH)-$(PROJECT_VERSION)
+BASE_DOCKER_TAG=$(ARCH)-$(BASE_VERSION)
 
 all: unit-tests
 
@@ -55,5 +64,22 @@ container-tests: ldap-tests
 
 ldap-tests:
 	@scripts/run_ldap_tests
+
+image: checks cop
+	@echo "Building docker fabric-cop image"
+	@mkdir -p build/image/cop
+	@cp bin/cop build/image/cop/cop
+	@cp docker/fabric-cop/*.json build/image/cop/.
+	@cp docker/fabric-cop/*.pem build/image/cop/.
+	@cat docker/fabric-cop/Dockerfile.in \
+                | sed -e 's/_BASE_TAG_/$(BASE_DOCKER_TAG)/g' \
+                | sed -e 's/_TAG_/$(DOCKER_TAG)/g' \
+                > build/image/cop/Dockerfile
+	docker build -t $(PROJECT_NAME) build/image/cop
+	docker tag $(PROJECT_NAME) $(PROJECT_NAME):$(DOCKER_TAG)
+
+cop-image-clean:
+	-docker images -q $(PROJECT_NAME) | xargs docker rmi -f
+	-@rm -rf build/image/$(PROJECT_NAME) ||:
 
 .FORCE:
