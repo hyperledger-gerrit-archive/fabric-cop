@@ -1,6 +1,6 @@
 # To build a docker image with cop
 ```sh
-$ docker build fabric-cop -t fabric-cop:latest
+$ cd /path/to/fabric-cop; make docker
 ```
 
 # Setup environment variables (optional)
@@ -28,7 +28,6 @@ $ export COP_CONFIG=<COP configuration file>
 default value: csr.json
 ```sh
 $ export CSR_CONFIG=<CSR configuration file>
-```
 ```
 
 # Certificate private and public files

@@ -5,10 +5,6 @@ COPY payload/cop /usr/local/bin
 
 # Copy the configuration files
 ADD payload/sampleconfig.tar.bz2 $COP_HOME
-#COPY payload/cop.json /config/cop.json
-#COPY payload/cop-psql.json /config/cop-psql.json
-#COPY payload/csr.json /config/csr.json
-#COPY payload/cop_client.json /etc/hyperledger/fabric-cop/cop_client.json
 
 # Copy the same certificates that are currently hardcoded into the peers
 COPY payload/root.pem /.cop/root.pem
