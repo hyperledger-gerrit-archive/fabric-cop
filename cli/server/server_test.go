@@ -19,18 +19,15 @@ package server
 import (
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/cloudflare/cfssl/csr"
-	factory "github.com/hyperledger/fabric-cop"
 	"github.com/hyperledger/fabric-cop/cli/server/dbutil"
 	"github.com/hyperledger/fabric-cop/cli/server/ldap"
 	"github.com/hyperledger/fabric-cop/idp"
 	"github.com/hyperledger/fabric-cop/lib"
-	"github.com/hyperledger/fabric-cop/util"
 )
 
 const (
@@ -81,21 +78,23 @@ func TestPostgresFail(t *testing.T) {
 func TestRegisterUser(t *testing.T) {
 	startServer()
 
-	copServer := `{"serverURL":"http://localhost:8888"}`
-	c, _ := lib.NewClient(copServer)
+	c := getClient(t)
+	if c == nil {
+		return
+	}
 
 	enrollReq := &idp.EnrollmentRequest{
 		Name:   "admin",
 		Secret: "adminpw",
 	}
 
-	ID, err := c.Enroll(enrollReq)
+	id, err := c.Enroll(enrollReq)
 	if err != nil {
 		t.Error("enroll of user 'admin' with password 'adminpw' failed")
 		return
 	}
 
-	err = ID.Store()
+	err = id.Store()
 	if err != nil {
 		t.Errorf("failed to store enrollment information: %s", err)
 		return
@@ -107,13 +106,6 @@ func TestRegisterUser(t *testing.T) {
 		Group: "bank_a",
 	}
 
-	id, _ := factory.NewIdentity()
-	identity, err := ioutil.ReadFile("/tmp/home/client.json")
-	if err != nil {
-		t.Error(err)
-	}
-	util.Unmarshal(identity, id, "identity")
-
 	regReq.Registrar = id
 
 	_, err = c.Register(regReq)
@@ -123,10 +115,8 @@ func TestRegisterUser(t *testing.T) {
 }
 
 func TestMisc(t *testing.T) {
-	copServer := `{"serverURL":"http://localhost:8888"}`
-	c, err := lib.NewClient(copServer)
-	if err != nil {
-		t.Errorf("TestMisc.NewClient failed: %s", err)
+	c := getClient(t)
+	if c == nil {
 		return
 	}
 	id, err := c.LoadMyIdentity()
@@ -144,8 +134,10 @@ func TestMisc(t *testing.T) {
 }
 
 func TestEnrollUser(t *testing.T) {
-	copServer := `{"serverURL":"http://localhost:8888"}`
-	c, _ := lib.NewClient(copServer)
+	c := getClient(t)
+	if c == nil {
+		return
+	}
 
 	req := &idp.EnrollmentRequest{
 		Name:   "testUser",
@@ -176,8 +168,10 @@ func TestEnrollUser(t *testing.T) {
 }
 
 func TestRevoke(t *testing.T) {
-	copServer := `{"serverURL":"http://localhost:8888"}`
-	c, _ := lib.NewClient(copServer)
+	c := getClient(t)
+	if c == nil {
+		return
+	}
 
 	req := &idp.EnrollmentRequest{
 		Name:   "admin2",
@@ -218,25 +212,25 @@ func TestRevoke(t *testing.T) {
 }
 
 func TestMaxEnrollment(t *testing.T) {
+	c := getClient(t)
+	if c == nil {
+		return
+	}
+
+	id, err := c.LoadMyIdentity()
+	if err != nil {
+		t.Errorf("TestMisc.LoadMyIdentity failed: %s", err)
+		return
+	}
+
 	CFG.UsrReg.MaxEnrollments = 2
 
-	copServer := `{"serverURL":"http://localhost:8888"}`
-	c, _ := lib.NewClient(copServer)
-
 	regReq := &idp.RegistrationRequest{
-		Name:  "MaxTestUser",
-		Type:  "Client",
-		Group: "bank_a",
+		Name:      "MaxTestUser",
+		Type:      "Client",
+		Group:     "bank_a",
+		Registrar: id,
 	}
-
-	id, _ := factory.NewIdentity()
-	identity, err := ioutil.ReadFile("/tmp/home/client.json")
-	if err != nil {
-		t.Error(err)
-	}
-	util.Unmarshal(identity, id, "identity")
-
-	regReq.Registrar = id
 
 	resp, err := c.Register(regReq)
 	if err != nil {
@@ -370,4 +364,14 @@ func testWithoutAuthHdr(c *lib.Client, t *testing.T) {
 	if err == nil {
 		t.Error("testWithAuthHdr.SendPost should have failed but passed")
 	}
+}
+
+func getClient(t *testing.T) *lib.Client {
+	copServer := `{"serverURL":"http://localhost:8888"}`
+	c, err := lib.NewClient(copServer)
+	if err != nil {
+		t.Fatalf("TestMisc.NewClient failed: %s", err)
+		return nil
+	}
+	return c
 }

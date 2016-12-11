@@ -121,7 +121,15 @@ The following command gets an ecert for the admin user.
 # ./cop client enroll admin adminpw http://localhost:8888
 ```
 
-Note that this stores the enrollment material in the `$COP_HOME/client.json` file.
+The enrollment certificate is stored at `$COP_ENROLLMENT_DIR/cert.pem` by default, but a different
+path can be specified by setting the `COP_CERT_FILE` environment variable.
+
+The enrollment key is stored at `$COP_ENROLLMENT_DIR/key.pem` by default, but a different
+path can be specified by setting the `COP_KEY_FILE` environment variable.
+
+The default value of the `$COP_ENROLLMENT_DIR` environment variable is `$COP_HOME`.
+
+The default value of the `$COP_HOME` environment variable is `$HOME/.cop`.
 
 ### Reenroll
 
@@ -135,7 +143,15 @@ key is used to authenticate to the COP server.
 # ./cop client reenroll ../testdata/csr.json http://localhost:8888
 ```
 
-Note that this updates the enrollment material in the `$COP_HOME/client.json` file.
+The enrollment certificate is stored at `$COP_ENROLLMENT_DIR/cert.pem` by default, but a different
+path can be specified by setting the `COP_CERT_FILE` environment variable.
+
+The enrollment key is stored at `$COP_ENROLLMENT_DIR/key.pem` by default, but a different
+path can be specified by setting the `COP_KEY_FILE` environment variable.
+
+The default value of the `$COP_ENROLLMENT_DIR` environment variable is `$COP_HOME`.
+
+The default value of the `$COP_HOME` environment variable is `$HOME/.cop`.
 
 
 ### Register a new user
