@@ -111,27 +111,9 @@ func (i *Identity) Delete() error {
 	return errors.New("NotImplemented")
 }
 
-// Store write my identity info to my identity file
+// Store write my identity info
 func (i *Identity) Store() error {
-	return i.StorePath(i.client.GetMyIdentityFile())
-}
-
-// StorePath stores my identity info to a file located at path
-func (i *Identity) StorePath(path string) error {
-	idByte, err := i.Serialize()
-	if err != nil {
-		return err
-	}
-	err = util.WriteFile(path, idByte, 0600)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// Serialize this identity
-func (i *Identity) Serialize() ([]byte, error) {
-	return util.Marshal(i, "identity")
+	return i.client.StoreMyIdentity(i.PublicSigner.Key, i.PublicSigner.Cert)
 }
 
 // Post sends arbtrary request body (reqBody) to an endpoint.
