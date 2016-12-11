@@ -374,3 +374,30 @@ func GetDefaultHomeDir() string {
 	}
 	return home
 }
+
+// GetX509FromPEM converts a PEM buffer to an X509 buffer
+func GetX509FromPEM(cert []byte) (*x509.Certificate, error) {
+	block, _ := pem.Decode(cert)
+	if block == nil {
+		return nil, errors.New("Failed to PEM decode certificate")
+	}
+	x509Cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("Error from x509.ParseCertificate: %s", err)
+	}
+	return x509Cert, nil
+}
+
+// GetEnrollmentIDFromPEM returns the enrollment ID from a PEM buffer
+func GetEnrollmentIDFromPEM(cert []byte) (string, error) {
+	x509Cert, err := GetX509FromPEM(cert)
+	if err != nil {
+		return "", err
+	}
+	return GetEnrollmentIDFromX509(x509Cert), nil
+}
+
+// GetEnrollmentIDFromX509 returns the enrollment ID from the X509 certificate
+func GetEnrollmentIDFromX509(cert *x509.Certificate) string {
+	return cert.Subject.CommonName
+}

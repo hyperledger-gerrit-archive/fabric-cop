@@ -18,18 +18,15 @@ package server
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/cloudflare/cfssl/csr"
-	factory "github.com/hyperledger/fabric-cop"
 	"github.com/hyperledger/fabric-cop/cli/server/dbutil"
 	"github.com/hyperledger/fabric-cop/cli/server/ldap"
 	"github.com/hyperledger/fabric-cop/idp"
 	"github.com/hyperledger/fabric-cop/lib"
-	"github.com/hyperledger/fabric-cop/util"
 )
 
 const (
@@ -88,13 +85,13 @@ func TestRegisterUser(t *testing.T) {
 		Secret: "adminpw",
 	}
 
-	ID, err := c.Enroll(regReq)
+	id, err := c.Enroll(regReq)
 	if err != nil {
 		t.Error("enroll of user 'admin' with password 'adminpw' failed")
 		return
 	}
 
-	err = ID.Store()
+	err = id.Store()
 	if err != nil {
 		t.Errorf("failed to store enrollment information: %s", err)
 		return
@@ -105,13 +102,6 @@ func TestRegisterUser(t *testing.T) {
 		Type:  "Client",
 		Group: "bank_a",
 	}
-
-	id, _ := factory.NewIdentity()
-	identity, err := ioutil.ReadFile("/tmp/home/client.json")
-	if err != nil {
-		t.Error(err)
-	}
-	util.Unmarshal(identity, id, "identity")
 
 	enrollReq.Registrar = id
 
