@@ -19,7 +19,6 @@ package lib
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"testing"
@@ -221,24 +220,6 @@ func testCapabilities(c *Client, t *testing.T) {
 	caps := c.Capabilities()
 	if caps == nil {
 		t.Error("testCapabilities failed")
-	}
-}
-
-func TestDeserializeIdentity(t *testing.T) {
-	config := `{"serverURL":"http://localhost:8888"}`
-	c, err := NewClient(config)
-	if err != nil {
-		t.Error("Failed to create client object")
-	}
-
-	idByte, err := ioutil.ReadFile("../testdata/client.json")
-	if err != nil {
-		t.Error("Error occured during reading of id file")
-	}
-
-	_, err = c.DeserializeIdentity(idByte)
-	if err != nil {
-		t.Error("Error occured during deserialization, error: ", err)
 	}
 }
 

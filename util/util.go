@@ -329,7 +329,7 @@ func B64Decode(str string) (buf []byte, err error) {
 	return base64.RawStdEncoding.DecodeString(str)
 }
 
-// GetDB returns DB
+// GetDB returns the database handle
 func GetDB(driver string, dbPath string) (*sqlx.DB, error) {
 	return sqlx.Open(driver, dbPath)
 }
