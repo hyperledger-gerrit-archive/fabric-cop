@@ -17,15 +17,14 @@ limitations under the License.
 package server
 
 import (
-	"errors"
 	"io/ioutil"
 	"net/http"
 
 	"github.com/cloudflare/cfssl/api"
-	cerr "github.com/cloudflare/cfssl/errors"
 	"github.com/cloudflare/cfssl/log"
 	"github.com/cloudflare/cfssl/signer"
 	cop "github.com/hyperledger/fabric-cop/api"
+	"github.com/hyperledger/fabric-cop/util"
 )
 
 // enrollHandler for register requests
@@ -44,71 +43,31 @@ func NewEnrollHandler() (h http.Handler, err error) {
 // Handle a enroll request
 func (h *enrollHandler) Handle(w http.ResponseWriter, r *http.Request) error {
 	log.Debug("enroll request received")
+	return handleEnrollRequest(w, r)
+}
 
+// handleEnrollRequest does the real work and is same as for reenroll,
+// except that the authorization header was different and handled by auth.go
+func handleEnrollRequest(w http.ResponseWriter, r *http.Request) error {
+	// Read the request's body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		log.Errorf("failed to read body: %s", err)
-		return cerr.NewBadRequest(errors.New("failed to read request body"))
+		return err
 	}
 	r.Body.Close()
 
-	user, token, ok := r.BasicAuth()
-	if !ok {
-		log.Error("No authorization header set")
-		return cerr.NewBadRequest(errors.New("missing authorization header"))
+	// Unmarshall request body
+	var req signer.SignRequest
+	err = util.Unmarshal(body, &req, "enrollment request")
+	if err != nil {
+		return err
 	}
 
-	enroll := NewEnrollUser()
-	cert, err := enroll.Enroll(user, []byte(token), body)
+	cert, err := CFG.Signer.Sign(req)
 	if err != nil {
-		return cerr.NewBadRequest(err)
+		log.Errorf("Sign error during reenroll: %s", err)
+		return cop.WrapError(err, cop.CFSSL, "reenroll failed in Sign")
 	}
 
 	return api.SendResponse(w, cert)
-}
-
-// Enroll is for enrolling a user
-type Enroll struct {
-	cfg *Config
-}
-
-// NewEnrollUser returns an pointer to an allocated enroll struct, populated
-// with the DB information (that set in the config) or nil on error.
-func NewEnrollUser() *Enroll {
-	e := new(Enroll)
-	e.cfg = CFG
-	return e
-}
-
-// Enroll will enroll an already registered user and provided an enrollment cert
-func (e *Enroll) Enroll(id string, token []byte, csrPEM []byte) ([]byte, cop.Error) {
-	log.Debugf("Received request to enroll user with id: %s\n", id)
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	cert, signErr := e.signKey(csrPEM)
-	if signErr != nil {
-		log.Error("Failed to sign CSR - Enroll Failed")
-		return nil, signErr
-	}
-
-	return cert, nil
-}
-
-func (e *Enroll) signKey(csrPEM []byte) ([]byte, cop.Error) {
-	log.Debugf("signKey")
-	req := signer.SignRequest{
-		// Hosts:   signer.SplitHosts(c.Hostname),
-		Request: string(csrPEM),
-		// Profile: c.Profile,
-		// Label:   c.Label,
-	}
-	cert, err := CFG.Signer.Sign(req)
-	if err != nil {
-		log.Errorf("Sign error: %s", err)
-		return nil, cop.WrapError(err, cop.CFSSL, "Failed in Sign")
-	}
-	log.Debug("Sign success")
-	return cert, nil
-
 }

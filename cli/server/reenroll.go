@@ -17,13 +17,10 @@ limitations under the License.
 package server
 
 import (
-	"io/ioutil"
 	"net/http"
 
 	"github.com/cloudflare/cfssl/api"
 	"github.com/cloudflare/cfssl/log"
-	"github.com/cloudflare/cfssl/signer"
-	cop "github.com/hyperledger/fabric-cop/api"
 )
 
 // reenrollHandler for register requests
@@ -39,22 +36,10 @@ func NewReenrollHandler() (h http.Handler, err error) {
 	}, nil
 }
 
-// Handle a enroll request
+// Handle a reenroll request
+// It is the same as an enroll request except that the authorization header
+// was different, as handled in auth.go
 func (h *reenrollHandler) Handle(w http.ResponseWriter, r *http.Request) error {
 	log.Debug("reenroll request received")
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return err
-	}
-	r.Body.Close()
-	req := signer.SignRequest{
-		Request: string(body),
-	}
-	cert, err := CFG.Signer.Sign(req)
-	if err != nil {
-		log.Errorf("Sign error during reenroll: %s", err)
-		return cop.WrapError(err, cop.CFSSL, "reenroll failed in Sign")
-	}
-	log.Debug("Sign success")
-	return api.SendResponse(w, cert)
+	return handleEnrollRequest(w, r)
 }
