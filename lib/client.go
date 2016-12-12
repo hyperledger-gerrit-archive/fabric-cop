@@ -34,6 +34,7 @@ import (
 	"github.com/cloudflare/cfssl/api"
 	"github.com/cloudflare/cfssl/csr"
 	"github.com/cloudflare/cfssl/log"
+	"github.com/cloudflare/cfssl/signer"
 	cop "github.com/hyperledger/fabric-cop/api"
 	"github.com/hyperledger/fabric-cop/idp"
 	"github.com/hyperledger/fabric-cop/util"
@@ -138,8 +139,20 @@ func (c *Client) Enroll(req *idp.EnrollmentRequest) (*Identity, error) {
 		return nil, err
 	}
 
-	// Send the CSR to the COP server
-	post, err := c.newPost("enroll", csrPEM)
+	// Get the body of the request
+	sreq := signer.SignRequest{
+		Hosts:   signer.SplitHosts(req.Hosts),
+		Request: string(csrPEM),
+		Profile: req.Profile,
+		Label:   req.Label,
+	}
+	body, err := util.Marshal(sreq, "SignRequest")
+	if err != nil {
+		return nil, err
+	}
+
+	// Send the CSR to the COP server with basic auth header
+	post, err := c.newPost("enroll", body)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +182,19 @@ func (c *Client) Reenroll(req *idp.ReenrollmentRequest) (*Identity, error) {
 		return nil, err
 	}
 
-	cert, err := id.Post("reenroll", csrPEM)
+	// Get the body of the request
+	sreq := signer.SignRequest{
+		Hosts:   signer.SplitHosts(req.Hosts),
+		Request: string(csrPEM),
+		Profile: req.Profile,
+		Label:   req.Label,
+	}
+	body, err := util.Marshal(sreq, "SignRequest")
+	if err != nil {
+		return nil, err
+	}
+
+	cert, err := id.Post("reenroll", body)
 	if err != nil {
 		return nil, err
 	}
@@ -337,7 +362,7 @@ func (c *Client) sendPost(req *http.Request) (respBody []byte, err error) {
 		}
 		log.Debugf("Received response\n%s", util.HTTPResponseToString(resp))
 	}
-	if resp.StatusCode >= 300 {
+	if resp.StatusCode >= 400 {
 		var msg string
 		body := new(api.Response)
 		err = json.Unmarshal(respBody, body)
