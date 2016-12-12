@@ -50,8 +50,8 @@ func createServer() *Server {
 }
 
 func startServer() int {
-	os.RemoveAll(homeDir)
 	if !serverStarted {
+		os.RemoveAll(homeDir)
 		serverStarted = true
 		fmt.Println("starting COP server ...")
 		os.Setenv("COP_DEBUG", "true")
@@ -174,11 +174,6 @@ func TestRevoke(t *testing.T) {
 		return
 	}
 
-	err = id.RevokeSelf()
-	if err == nil {
-		t.Error("RevokeSelf twice should have failed but did not")
-	}
-
 	err = id.Revoke(&idp.RevocationRequest{})
 	if err == nil {
 		t.Error("Revoke with no args should have failed but did not")
@@ -212,15 +207,12 @@ func TestCreateHome(t *testing.T) {
 }
 
 func TestEnroll(t *testing.T) {
-	e := NewEnrollUser()
-
-	testUnregisteredUser(e, t)
-	testIncorrectToken(e, t)
-	testEnrollingUser(e, t)
-
+	testUnregisteredUser(t)
+	testIncorrectToken(t)
+	testEnrollingUser(t)
 }
 
-func testUnregisteredUser(e *Enroll, t *testing.T) {
+func testUnregisteredUser(t *testing.T) {
 	copServer := `{"serverURL":"http://localhost:8888"}`
 	c, _ := lib.NewClient(copServer)
 
@@ -236,7 +228,7 @@ func testUnregisteredUser(e *Enroll, t *testing.T) {
 	}
 }
 
-func testIncorrectToken(e *Enroll, t *testing.T) {
+func testIncorrectToken(t *testing.T) {
 	copServer := `{"serverURL":"http://localhost:8888"}`
 	c, _ := lib.NewClient(copServer)
 
@@ -252,7 +244,7 @@ func testIncorrectToken(e *Enroll, t *testing.T) {
 	}
 }
 
-func testEnrollingUser(e *Enroll, t *testing.T) {
+func testEnrollingUser(t *testing.T) {
 	copServer := `{"serverURL":"http://localhost:8888"}`
 	c, _ := lib.NewClient(copServer)
 
@@ -322,6 +314,32 @@ func TestUpdateField(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error occured while updating state field for id 'testUser2', [error: %s]", err)
 	}
+}
 
-	os.RemoveAll(homeDir)
+func TestExpiration(t *testing.T) {
+
+	copServer := `{"serverURL":"http://localhost:8888"}`
+	c, _ := lib.NewClient(copServer)
+
+	// Enroll this user using the "expiry" profile which is configured
+	// to expire after 1 second
+	regReq := &idp.EnrollmentRequest{
+		Name:    "expiryUser",
+		Secret:  "expirypw",
+		Profile: "expiry",
+	}
+
+	id, err := c.Enroll(regReq)
+	if err != nil {
+		t.Error("enroll of user 'admin' with password 'adminpw' failed")
+		return
+	}
+
+	t.Log("Sleeping 5 seconds waiting for certificate to expire")
+	time.Sleep(5 * time.Second)
+	t.Log("Done sleeping")
+	err = id.RevokeSelf()
+	if err == nil {
+		t.Error("certificate should have expired but did not")
+	}
 }

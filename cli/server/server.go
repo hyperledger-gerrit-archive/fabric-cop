@@ -180,10 +180,7 @@ func startMain(args []string, c cli.Config) error {
 		log.Errorf("Failed to find database")
 	}
 
-	var cfsslCfg cli.Config
-	cfsslCfg.CAFile = cfg.CACert
-	cfsslCfg.CAKeyFile = cfg.CAKey
-	mySigner, err := SignerFromConfigAndDB(cfsslCfg, db)
+	mySigner, err := SignerFromConfigAndDB(c, db)
 	if err != nil {
 		log.Errorf("SignerFromConfigAndDB error: %s", err)
 		return cop.WrapError(err, cop.CFSSL, "failed in SignerFromConfigAndDB")
