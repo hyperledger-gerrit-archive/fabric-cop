@@ -52,8 +52,8 @@ func createServer() *Server {
 }
 
 func startServer() int {
-	os.RemoveAll(homeDir)
 	if !serverStarted {
+		os.RemoveAll(homeDir)
 		serverStarted = true
 		fmt.Println("starting COP server ...")
 		os.Setenv("COP_DEBUG", "true")
@@ -212,10 +212,6 @@ func TestRevoke(t *testing.T) {
 		return
 	}
 
-	err = id.RevokeSelf()
-	if err == nil {
-		t.Error("RevokeSelf twice should have failed but did not")
-	}
 }
 
 func TestMaxEnrollment(t *testing.T) {
@@ -245,6 +241,9 @@ func TestMaxEnrollment(t *testing.T) {
 	}
 
 	secretBytes, err := base64.StdEncoding.DecodeString(resp.Secret)
+	if err != nil {
+		t.Fatalf("Failed to deode secret bytes: %s", err)
+	}
 
 	enrollReq := &idp.EnrollmentRequest{
 		Name:   "MaxTestUser",
@@ -291,14 +290,12 @@ func TestCreateHome(t *testing.T) {
 }
 
 func TestEnroll(t *testing.T) {
-	e := NewEnrollUser()
-
-	testUnregisteredUser(e, t)
-	testIncorrectToken(e, t)
-	testEnrollingUser(e, t)
+	testUnregisteredUser(t)
+	testIncorrectToken(t)
+	testEnrollingUser(t)
 }
 
-func testUnregisteredUser(e *Enroll, t *testing.T) {
+func testUnregisteredUser(t *testing.T) {
 	copServer := `{"serverURL":"http://localhost:8888"}`
 	c, _ := lib.NewClient(copServer)
 
@@ -314,7 +311,7 @@ func testUnregisteredUser(e *Enroll, t *testing.T) {
 	}
 }
 
-func testIncorrectToken(e *Enroll, t *testing.T) {
+func testIncorrectToken(t *testing.T) {
 	copServer := `{"serverURL":"http://localhost:8888"}`
 	c, _ := lib.NewClient(copServer)
 
@@ -330,7 +327,7 @@ func testIncorrectToken(e *Enroll, t *testing.T) {
 	}
 }
 
-func testEnrollingUser(e *Enroll, t *testing.T) {
+func testEnrollingUser(t *testing.T) {
 	copServer := `{"serverURL":"http://localhost:8888"}`
 	c, _ := lib.NewClient(copServer)
 
@@ -379,6 +376,34 @@ func TestUpdateField(t *testing.T) {
 	}
 }
 
+func TestExpiration(t *testing.T) {
+
+	copServer := `{"serverURL":"http://localhost:8888"}`
+	c, _ := lib.NewClient(copServer)
+
+	// Enroll this user using the "expiry" profile which is configured
+	// to expire after 1 second
+	regReq := &idp.EnrollmentRequest{
+		Name:    "expiryUser",
+		Secret:  "expirypw",
+		Profile: "expiry",
+	}
+
+	id, err := c.Enroll(regReq)
+	if err != nil {
+		t.Error("enroll of user 'admin' with password 'adminpw' failed")
+		return
+	}
+
+	t.Log("Sleeping 5 seconds waiting for certificate to expire")
+	time.Sleep(5 * time.Second)
+	t.Log("Done sleeping")
+	err = id.RevokeSelf()
+	if err == nil {
+		t.Error("certificate should have expired but did not")
+	}
+}
+
 func TestUserRegistry(t *testing.T) {
 
 	err := InitUserRegistry(&Config{DBdriver: "postgres", DataSource: "dbname=cop sslmode=disable"})
@@ -401,11 +426,6 @@ func TestUserRegistry(t *testing.T) {
 		t.Error("Trying to LDAP with no URL; it should have failed but passed")
 	}
 
-}
-
-func TestLast(t *testing.T) {
-	// Cleanup
-	os.RemoveAll(homeDir)
 }
 
 func testStatic(id *lib.Identity, t *testing.T) {
