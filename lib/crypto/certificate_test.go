@@ -18,7 +18,9 @@ package crypto
 
 import (
 	"io/ioutil"
+	"log"
 	"math/big"
+	"os"
 	"testing"
 
 	"crypto/ecdsa"
@@ -28,11 +30,67 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/json"
+	"encoding/pem"
+
+	"github.com/hyperledger/fabric/core/crypto/bccsp"
+	"github.com/hyperledger/fabric/core/crypto/bccsp/factory"
+	"github.com/hyperledger/fabric/core/crypto/bccsp/utils"
 )
 
 const (
 	testName = "CertificateTest"
 )
+
+var (
+	currentBCCSP bccsp.BCCSP
+)
+
+func genTestMaterial() {
+	jsonString := ConvertJSONFileToJSONString("cacertlocation.json")
+	privateKeyFile, error := ReadJSONAsMapString(jsonString, "CAKeyFile")
+	if error != nil {
+		log.Fatalf("Cannot retrieve Private Key. The CA Key/Cert json file is malformed")
+		os.Exit(-1)
+	}
+	privateKeyBuff, err := ioutil.ReadFile(privateKeyFile)
+	if err != nil {
+		log.Fatalf("Cannot get Private Key")
+		os.Exit(-1)
+	}
+	block, _ := pem.Decode(privateKeyBuff)
+	//caPrivateKey, err := GetPrivateKey(privateKeyBuff)
+
+	k, err := currentBCCSP.KeyImport(block.Bytes, &bccsp.ECDSAPrivateKeyImportOpts{Temporary: false})
+	if err != nil {
+		log.Fatalf("CA Private Key Object cannot be generated [%s]", err)
+		os.Exit(-1)
+	}
+
+	privateKeySKIFile, err := ReadJSONAsMapString(jsonString, "CAKeySKIFile")
+	if err != nil {
+		log.Fatalf("Cannot retrieve Private Key. The CA Key/Cert json file is malformed")
+		os.Exit(-1)
+	}
+
+	err = ioutil.WriteFile(privateKeySKIFile, k.SKI(), 0644)
+	if err != nil {
+		log.Fatalf("Cannot write Private Key SKI")
+		os.Exit(-1)
+	}
+
+}
+
+func TestMain(m *testing.M) {
+	var err error
+	currentBCCSP, err = factory.GetDefault()
+	if err != nil {
+		log.Fatalf("Failed getting default BCCSP [%s]", err)
+		os.Exit(-1)
+	}
+
+	genTestMaterial()
+	os.Exit(m.Run())
+}
 
 /****************  Has been added for testing purposes *********/
 // BatchRequest struct contains input to the TCert Generation
@@ -62,10 +120,24 @@ type Attribute struct {
 /*************************  Has been added for testing purposes *******************/
 
 func TestCAIssuedCert(t *testing.T) {
-
-	privKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	privKey, err := currentBCCSP.KeyGen(&bccsp.ECDSAP384KeyGenOpts{Temporary: true})
 	if err != nil {
-		t.Fatalf("cannot generate EC Key Pair")
+		t.Fatalf("Failed generating ECDSA key [%s]", err)
+	}
+
+	pubKey, err := privKey.PublicKey()
+	if err != nil {
+		t.Fatalf("Failed getting corresponding public key [%s]", err)
+	}
+
+	pkRaw, err := pubKey.Bytes()
+	if err != nil {
+		t.Fatalf("Failed getting ECDSA raw public key [%s]", err)
+	}
+
+	pubSw, err := utils.DERToPublicKey(pkRaw)
+	if err != nil {
+		t.Fatalf("Failed converting raw to ECDSA.PublicKey [%s]", err)
 	}
 
 	extraExtensionData := []byte("extra extension")
@@ -94,14 +166,14 @@ func TestCAIssuedCert(t *testing.T) {
 	}
 	uid := batchRequest.UID
 
-	certSpec, error := ParseCertificateRequest(&batchRequest.CertificateRequestData, uid, big.NewInt(1234567), &privKey.PublicKey, x509.KeyUsageDigitalSignature, pkixExtension)
+	certSpec, error := ParseCertificateRequest(&batchRequest.CertificateRequestData, uid, big.NewInt(1234567), pubSw, x509.KeyUsageDigitalSignature, pkixExtension)
 	if error != nil {
 		t.Fatalf("CSR did not contain mandatory data -- [%v]", error)
 	}
 
 	rawcert, certError := NewCertificateFromSpec(certSpec)
 	if certError != nil {
-		t.Fatalf("cannot generate Cert ")
+		t.Fatalf("cannot generate Cert [%s]", certError)
 	}
 	if rawcert != nil {
 

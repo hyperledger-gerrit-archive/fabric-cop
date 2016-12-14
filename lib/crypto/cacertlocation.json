@@ -1,5 +1,6 @@
 {
 	"CAKeyFile": "../../testdata/ecTest-key.pem",
+	"CAKeySKIFile": "../../testdata/ecTest-key.ski",
 	"CACertificate": "../../testdata/ecTest.pem"
 
 }

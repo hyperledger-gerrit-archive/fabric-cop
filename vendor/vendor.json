@@ -465,10 +465,10 @@
 			"revisionTime": "2016-10-19T17:07:01Z"
 		},
 		{
-			"checksumSHA1": "31ZLI8tuAXbLNMKKyy2QjKWOpLY=",
+			"checksumSHA1": "sQj+j+A27xCDaj8ic395zPUXIeE=",
 			"path": "github.com/hyperledger/fabric/core/crypto/bccsp",
-			"revision": "92bbf994f7125c2dcc061d8ece78ab1d3574a7d1",
-			"revisionTime": "2016-12-04T13:15:26Z",
+			"revision": "ea6937452e3ec713140a933f9f4582245d4c8ddb",
+			"revisionTime": "2016-12-12T20:10:48Z",
 			"tree": true
 		},
 		{

@@ -39,6 +39,9 @@ import (
 	"math/big"
 
 	"github.com/cloudflare/cfssl/log"
+
+	"github.com/hyperledger/fabric/core/crypto/bccsp/factory"
+	"github.com/hyperledger/fabric/core/crypto/bccsp/signer"
 )
 
 const (
@@ -69,24 +72,39 @@ func GenNumber(numlen *big.Int) *big.Int {
 //GetCAKeyAndCert function reads CA key and Cert file from resource
 //and converts it to privateKey and Certicate Object
 func GetCAKeyAndCert() (interface{}, *x509.Certificate, error) {
+	bccsp, error := factory.GetDefault()
+	if error != nil {
+		log.Errorf("Failed getting default BCCSP [%s]", error)
+		return nil, nil, fmt.Errorf("Failed getting default BCCSP [%s]", error)
+	} else if bccsp == nil {
+		log.Error("Failed getting default BCCSP. Nil instance.")
+		return nil, nil, errors.New("Failed getting default BCCSP. Nil instance")
+	}
 
-	jsonString := ConvertJSONFileToJSONString("cacertlocation.json")
+	jsonString := ConvertJSONFileToJSONString("../crypto/cacertlocation.json")
 
-	privateKeyFile, error := ReadJSONAsMapString(jsonString, "CAKeyFile")
-
+	privateKeyFile, error := ReadJSONAsMapString(jsonString, "CAKeySKIFile")
 	if error != nil {
 		log.Error("Cannot retrieve Private Key. The CA Key/Cert json file is malformed")
 		return nil, nil, errors.New("Cannot retrieve Private Key. The CA Key/Cert json file is malformed")
 	}
-	privateKeyBuff, err := ioutil.ReadFile(privateKeyFile)
+
+	privateKeySKI, err := ioutil.ReadFile(privateKeyFile)
 	if err != nil {
-		log.Error("Cannot get Private Key")
-		return nil, nil, errors.New("Private Key cannot be obtained from file system")
+		log.Error("Cannot get Private Key SKI")
+		return nil, nil, errors.New("Private Key SKI cannot be obtained from file system")
 	}
-	caPrivateKey, err := GetPrivateKey(privateKeyBuff)
-	if err != nil {
-		log.Error("CA Private Key Object cannot be generated")
-		return nil, nil, errors.New("CA Certificate Private Key Object cannot be generated")
+
+	privateKey, error := bccsp.GetKey(privateKeySKI)
+	if error != nil {
+		log.Errorf("Failed getting key from BCCSP [%x] [%s].", privateKey, error.Error())
+		return nil, nil, fmt.Errorf("Failed getting key from BCCSP [%x] [%s]", privateKey, error.Error())
+	}
+
+	caPrivateKey := &signer.CryptoSigner{}
+	if error = caPrivateKey.Init(bccsp, privateKey); err != nil {
+		log.Error("Cannot initialize CryptoSigner.")
+		return nil, nil, errors.New("Cannot retrieve Private Key. The CA Key/Cert json file is malformed")
 	}
 
 	certificateFile, caerror := ReadJSONAsMapString(jsonString, "CACertificate")
@@ -226,7 +244,7 @@ func VerifyMessage(jsonString string, signatureString string) bool {
 
 	raw, decodingErr := base64.StdEncoding.DecodeString(ecert)
 	if decodingErr != nil {
-		log.Error("Error Decoding Certififcate")
+		log.Errorf("Error Decoding Certififcate [%s]", decodingErr)
 		return false
 	}
 

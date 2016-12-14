@@ -20,11 +20,68 @@ import (
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"io/ioutil"
+	"log"
+	"os"
 	"testing"
 
 	crypto "github.com/hyperledger/fabric-cop/lib/crypto"
+
+	"github.com/hyperledger/fabric/core/crypto/bccsp"
+	"github.com/hyperledger/fabric/core/crypto/bccsp/factory"
 )
+
+var (
+	currentBCCSP bccsp.BCCSP
+)
+
+func genTestMaterial() {
+	jsonString := crypto.ConvertJSONFileToJSONString("../crypto/cacertlocation.json")
+	privateKeyFile, error := crypto.ReadJSONAsMapString(jsonString, "CAKeyFile")
+	if error != nil {
+		log.Fatalf("Cannot retrieve Private Key. The CA Key/Cert json file is malformed [%s]", error)
+		os.Exit(-1)
+	}
+	privateKeyBuff, err := ioutil.ReadFile(privateKeyFile)
+	if err != nil {
+		log.Fatalf("Cannot get Private Key")
+		os.Exit(-1)
+	}
+	block, _ := pem.Decode(privateKeyBuff)
+	//caPrivateKey, err := GetPrivateKey(privateKeyBuff)
+
+	k, err := currentBCCSP.KeyImport(block.Bytes, &bccsp.ECDSAPrivateKeyImportOpts{Temporary: false})
+	if err != nil {
+		log.Fatalf("CA Private Key Object cannot be generated [%s]", err)
+		os.Exit(-1)
+	}
+
+	privateKeySKIFile, error := crypto.ReadJSONAsMapString(jsonString, "CAKeySKIFile")
+	if error != nil {
+		log.Fatalf("Cannot retrieve Private Key. The CA Key/Cert json file is malformed [%s]", error)
+		os.Exit(-1)
+	}
+
+	err = ioutil.WriteFile(privateKeySKIFile, k.SKI(), 0644)
+	if err != nil {
+		log.Fatalf("Cannot write Private Key SKI")
+		os.Exit(-1)
+	}
+
+}
+
+func TestMain(m *testing.M) {
+	var err error
+	currentBCCSP, err = factory.GetDefault()
+	if err != nil {
+		log.Fatalf("Failed getting default BCCSP [%s]", err)
+		os.Exit(-1)
+	}
+
+	genTestMaterial()
+	os.Exit(m.Run())
+}
 
 func TestTCertWithoutAttribute(t *testing.T) {
 
