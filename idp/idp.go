@@ -215,7 +215,7 @@ type ImportSignerRequest struct {
 
 // GetPrivateSignersRequest is input provided to get private signers
 type GetPrivateSignersRequest struct {
-	Count          int       `json:"count"`
+	Count          uint      `json:"count"`
 	AttrNames      []string  `json:"attrNames,omitempty"`
 	ValidityPeriod time.Time `json:"validityPeriod,omitempty"`
 }

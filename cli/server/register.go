@@ -168,7 +168,7 @@ func (r *Register) registerUserID(id string, userType string, group string, attr
 		Attributes: attributes,
 	}
 
-	_, err := r.cfg.UserRegistry.GetUser(id)
+	_, err := r.cfg.UserRegistry.GetUser(id, nil)
 	if err == nil {
 		log.Error("User is already registered")
 		return "", cop.NewError(cop.RegisteringUserError, "User is already registered")
@@ -184,13 +184,13 @@ func (r *Register) registerUserID(id string, userType string, group string, attr
 	}
 
 	if len(opt) > 1 {
-		maxE, err := strconv.Atoi(opt[1])
-		if err != nil {
-			return "", err
+		maxE, merr := strconv.Atoi(opt[1])
+		if merr != nil {
+			return "", merr
 		}
-		err = r.cfg.UserRegistry.UpdateField(id, maxEnrollments, maxE)
-		if err != nil {
-			return "", err
+		merr = r.cfg.UserRegistry.UpdateField(id, maxEnrollments, maxE)
+		if merr != nil {
+			return "", merr
 		}
 	} else {
 		err = r.cfg.UserRegistry.UpdateField(id, maxEnrollments, 1)
@@ -229,7 +229,7 @@ func (r *Register) requireGroup(userType string) bool {
 func (r *Register) canRegister(registrar string, userType string) error {
 	log.Debugf("canRegister - Check to see if user %s can register", registrar)
 
-	user, err := r.cfg.UserRegistry.GetUser(registrar)
+	user, err := r.cfg.UserRegistry.GetUser(registrar, nil)
 	if err != nil {
 		return fmt.Errorf("Registrar does not exist: %s", err)
 	}
