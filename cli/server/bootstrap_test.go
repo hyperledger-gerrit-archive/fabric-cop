@@ -83,7 +83,7 @@ func testBootstrapGroup(b *Bootstrap, t *testing.T) {
 func testBootstrapUsers(b *Bootstrap, t *testing.T) {
 	b.PopulateUsersTable()
 
-	_, err := CFG.UserRegistry.GetUser("admin")
+	_, err := CFG.UserRegistry.GetUser("admin", nil)
 
 	if err != nil {
 		t.Error("Failed bootstrapping users table")

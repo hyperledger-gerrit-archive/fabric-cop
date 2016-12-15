@@ -83,7 +83,7 @@ func (h *revokeHandler) Handle(w http.ResponseWriter, r *http.Request) error {
 			return notFound(w, err)
 		}
 	} else if req.Name != "" {
-		_, err := CFG.UserRegistry.GetUser(req.Name)
+		_, err := CFG.UserRegistry.GetUser(req.Name, nil)
 		if err != nil {
 			log.Warningf("Revoke failed: %s", err)
 			return notFound(w, err)
