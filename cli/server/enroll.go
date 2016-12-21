@@ -103,7 +103,7 @@ func (e *Enroll) signKey(csrPEM []byte) ([]byte, cop.Error) {
 		// Profile: c.Profile,
 		// Label:   c.Label,
 	}
-	cert, err := CFG.Signer.Sign(req)
+	cert, err := s.Sign(req)
 	if err != nil {
 		log.Errorf("Sign error: %s", err)
 		return nil, cop.WrapError(err, cop.CFSSL, "Failed in Sign")
