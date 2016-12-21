@@ -49,7 +49,7 @@ import (
 	"github.com/cloudflare/cfssl/signer"
 	"github.com/cloudflare/cfssl/signer/universal"
 	"github.com/cloudflare/cfssl/ubiquity"
-	cop "github.com/hyperledger/fabric-cop/api"
+	"github.com/hyperledger/fabric-cop/cli/server/spi"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -79,11 +79,15 @@ Flags:
 )
 
 var (
-	conf       cli.Config
-	s          signer.Signer
-	ocspSigner ocsp.Signer
-	db         *sqlx.DB
-	mutex      = &sync.RWMutex{}
+	conf           cli.Config
+	s              signer.Signer
+	ocspSigner     ocsp.Signer
+	db             *sqlx.DB
+	mutex          = &sync.RWMutex{}
+	home           string
+	configFile     string
+	userRegistry   spi.UserRegistry
+	certDBAccessor *CertDBAccessor
 )
 
 var (
@@ -157,7 +161,6 @@ func startMain(args []string, c cli.Config) error {
 	}
 	configInit(&c)
 	cfg := CFG
-	cfg.Home = home
 
 	if cfg.DataSource == "" {
 		msg := "No database specified, a database is needed to run COP server. Using default - Type: SQLite, Name: cop.db"
@@ -167,22 +170,15 @@ func startMain(args []string, c cli.Config) error {
 	}
 
 	if cfg.DBdriver == sqlite {
-		cfg.DataSource = filepath.Join(cfg.Home, cfg.DataSource)
+		cfg.DataSource = filepath.Join(home, cfg.DataSource)
 	}
 
 	// Initialize the user registry
 	err = InitUserRegistry(cfg)
 	if err != nil {
-		log.Error("Failed to initialize user registry")
+		log.Errorf("Failed to initialize user registry [error: %s]", err)
 		return err
 	}
-
-	mySigner, err := SignerFromConfigAndDB(c, db)
-	if err != nil {
-		log.Errorf("SignerFromConfigAndDB error: %s", err)
-		return cop.WrapError(err, cop.CFSSL, "failed in SignerFromConfigAndDB")
-	}
-	cfg.Signer = mySigner
 
 	return serverMain(args, c)
 }
@@ -204,6 +200,10 @@ func serverMain(args []string, c cli.Config) error {
 	}
 
 	log.Info("Initializing signer")
+
+	if s, err = SignerFromConfigAndDB(c, db); err != nil {
+		log.Warningf("couldn't initialize signer: %v", err)
+	}
 
 	if ocspSigner, err = ocspsign.SignerFromConfig(c); err != nil {
 		log.Warningf("couldn't initialize ocsp signer: %v", err)
@@ -412,7 +412,7 @@ func SignerFromConfigAndDB(c cli.Config, db *sqlx.DB) (signer.Signer, error) {
 	}
 
 	if db != nil {
-		certAccessor := CertificateAccessor(db)
+		certAccessor := InitCertificateAccessor(db)
 		s.SetDBAccessor(certAccessor)
 	}
 

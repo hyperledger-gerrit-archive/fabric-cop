@@ -70,7 +70,7 @@ func (b *Bootstrap) PopulateGroupsTable() {
 	replacer := strings.NewReplacer(".", "_")
 	viper.SetEnvKeyReplacer(replacer)
 
-	base := filepath.Base(CFG.ConfigFile)
+	base := filepath.Base(configFile)
 	filename := strings.Split(base, ".")
 	name := filename[0]
 	typ := filename[1]
@@ -78,7 +78,7 @@ func (b *Bootstrap) PopulateGroupsTable() {
 	viper.SetConfigName(name)
 	viper.SetConfigType(typ)
 
-	configPath := filepath.Dir(CFG.ConfigFile)
+	configPath := filepath.Dir(configFile)
 	viper.AddConfigPath(configPath)
 	err := viper.ReadInConfig()
 	if err != nil {
