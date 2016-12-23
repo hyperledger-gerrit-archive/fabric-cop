@@ -97,8 +97,9 @@ const (
 func Command() error {
 	// The server commands
 	cmds := map[string]*cli.Command{
-		"init":  InitServerCommand,
-		"start": StartCommand,
+		"remoteinit": RemoteInit,
+		"init":       InitServerCommand,
+		"start":      StartCommand,
 	}
 	return cli.Start(cmds)
 }
