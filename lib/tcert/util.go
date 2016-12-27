@@ -25,8 +25,10 @@ import (
 
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/pem"
 	"math/big"
@@ -42,6 +44,8 @@ const (
 var (
 	//RootPreKeySize is the default value of root key
 	RootPreKeySize = 48
+	// tcertSubject is the subject name placed in all generated TCerts
+	tcertSubject = pkix.Name{CommonName: "Fabric Transaction Certificate"}
 )
 
 // GenerateIntUUID returns a UUID based on RFC 4122 returning a big.Int
@@ -288,4 +292,52 @@ func CreateRootPreKey() string {
 	rand.Reader.Read(key)
 	cooked = base64.StdEncoding.EncodeToString(key)
 	return cooked
+}
+
+// GenerateCertificate generates X509 Certificate based on parameter passed
+func GenerateCertificate(validityPeriod time.Duration, serialNumber *big.Int,
+	extensions []pkix.Extension, pubkey *ecdsa.PublicKey,
+	CAKey interface{}, CACert *x509.Certificate) ([]byte, error) {
+	// Create a template from which to create all other TCerts.
+	// Since a TCert is anonymous and unlinkable, do not include
+	template := &x509.Certificate{
+		Subject: tcertSubject,
+	}
+	template.NotBefore = time.Now()
+	template.NotAfter = template.NotBefore.Add(validityPeriod)
+	template.IsCA = false
+	template.KeyUsage = x509.KeyUsageDigitalSignature
+	template.SubjectKeyId = []byte{1, 2, 3, 4}
+
+	template.Extensions = extensions
+	template.ExtraExtensions = extensions
+	template.SerialNumber = serialNumber
+
+	raw, err := x509.CreateCertificate(rand.Reader, template, CACert, pubkey, CAKey)
+	if err != nil {
+		log.Errorf("Certificate Creation failed with error [%v]", err)
+		return nil, fmt.Errorf("Failed in TCert x509.CreateCertificate: %s", err)
+	}
+
+	pem := ConvertDERToPEM(raw, "CERTIFICATE")
+
+	return pem, nil
+}
+
+// GetPublicKey returns Public Key interface for the public key bytes
+func GetPublicKey(publicKey []byte) (interface{}, error) {
+
+	block, _ := pem.Decode(publicKey)
+	var pubKey interface{}
+	var pubKeyParseError error
+	if block != nil {
+		pubKey, pubKeyParseError = x509.ParsePKIXPublicKey(block.Bytes)
+	} else {
+		pubKey, pubKeyParseError = x509.ParsePKIXPublicKey(publicKey)
+	}
+
+	if pubKeyParseError != nil {
+		return nil, pubKeyParseError
+	}
+	return pubKey, nil
 }

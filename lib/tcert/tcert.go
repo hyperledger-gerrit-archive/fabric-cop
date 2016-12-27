@@ -25,6 +25,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"time"
 
@@ -46,9 +47,6 @@ var (
 
 	// Padding for encryption.
 	Padding = []byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}
-
-	// tcertSubject is the subject name placed in all generated TCerts
-	tcertSubject = pkix.Name{CommonName: "Fabric Transaction Certificate"}
 )
 
 // NewMgr is the constructor for a TCert manager
@@ -104,17 +102,6 @@ func (tm *Mgr) GetBatch(req *GetBatchRequest, ecert *x509.Certificate) (*GetBatc
 		vp = req.ValidityPeriod
 	}
 
-	// Create a template from which to create all other TCerts.
-	// Since a TCert is anonymous and unlinkable, do not include
-	template := &x509.Certificate{
-		Subject: tcertSubject,
-	}
-	template.NotBefore = time.Now()
-	template.NotAfter = template.NotBefore.Add(vp)
-	template.IsCA = false
-	template.KeyUsage = x509.KeyUsageDigitalSignature
-	template.SubjectKeyId = []byte{1, 2, 3, 4}
-
 	// Generate nonce for TCertIndex
 	nonce := make([]byte, 16) // 8 bytes rand, 8 bytes timestamp
 	rand.Reader.Read(nonce[:8])
@@ -168,23 +155,80 @@ func (tm *Mgr) GetBatch(req *GetBatchRequest, ecert *x509.Certificate) (*GetBatc
 			return nil, extensionErr
 		}
 
-		template.PublicKey = txPub
-		template.Extensions = extensions
-		template.ExtraExtensions = extensions
-		template.SerialNumber = tcertid
-
-		raw, err := x509.CreateCertificate(rand.Reader, template, tm.CACert, &txPub, tm.CAKey)
-		if err != nil {
-			return nil, fmt.Errorf("Failed in TCert x509.CreateCertificate: %s", err)
+		pem, certError := GenerateCertificate(vp, tcertid, extensions, &txPub, tm.CAKey, tm.CACert)
+		if certError != nil {
+			log.Errorf("TCert Generation Failed with error [%v]", certError)
+			return nil, fmt.Errorf("TCert Generation Failed with error [%v]", certError)
 		}
-
-		pem := ConvertDERToPEM(raw, "CERTIFICATE")
 
 		set = append(set, TCert{pem, ks})
 	}
 
 	tcertID := GenNumber(big.NewInt(20))
 	tcertResponse := &GetBatchResponse{tcertID, time.Now(), kdfKey, set}
+
+	return tcertResponse, nil
+
+}
+
+// GetBatchForGeneratedKey returns batch of TCerts for locally generated Key
+// This is used for HSM Friendly TCert generation , no Key Derivation
+func (tm *Mgr) GetBatchForGeneratedKey(req *GetBatchGenKeyRequest) (*GetBatchResponse, error) {
+	if req == nil {
+		log.Error("Batch Request is nil")
+		return nil, errors.New("Batch Request is nil")
+	}
+	batchRequest := req.BatchRequest
+	if &batchRequest == nil {
+		log.Error("Batch Request is nil")
+		return nil, errors.New("Batch Request is nil")
+	}
+	publicKeyList := req.PublicKeys
+	noOfPublicKeys := len(publicKeyList)
+	if noOfPublicKeys == 0 {
+		log.Error("Public Key for TCert is not present")
+		return nil, errors.New("Public Key for TCert is not present")
+	}
+
+	//var rawPublic []byte
+	//var publicKey *ecdsa.PublicKey
+	//var pubKeyInterface interface{}
+	//var publicKeyError error
+
+	var set []TCert
+	for i := 0; i < noOfPublicKeys; i++ {
+		tcertid, uuidError := GenerateIntUUID()
+		if uuidError != nil {
+			return nil, fmt.Errorf("Failure generating UUID: %s", uuidError)
+		}
+
+		// Certs are valid for the min of requested and configured max
+		vp := tm.ValidityPeriod
+		if batchRequest.ValidityPeriod > 0 && batchRequest.ValidityPeriod < vp {
+			vp = batchRequest.ValidityPeriod
+		}
+
+		extensions, ks, extensionErr := generateExtensions(tcertid, nil, nil, &batchRequest)
+		if extensionErr != nil {
+			return nil, extensionErr
+		}
+
+		pubKey, publicKeyParseError := GetPublicKey(publicKeyList[i])
+		if publicKeyParseError != nil {
+			log.Errorf("Public Key Marshalling failed with error [%v]", publicKeyParseError)
+			return nil, publicKeyParseError
+		}
+		pem, certError := GenerateCertificate(vp, tcertid, extensions, pubKey.(*ecdsa.PublicKey), tm.CAKey, tm.CACert)
+		if certError != nil {
+			log.Errorf("TCert Generation Failed with error [%v]", certError)
+			return nil, fmt.Errorf("TCert Generation Failed with error [%v]", certError)
+		}
+		set = append(set, TCert{pem, ks})
+
+	} // End of For loop
+
+	tcertID := GenNumber(big.NewInt(20))
+	tcertResponse := &GetBatchResponse{tcertID, time.Now(), nil, set}
 
 	return tcertResponse, nil
 
@@ -213,21 +257,26 @@ func generateExtensions(tcertid *big.Int, tidx []byte, enrollmentCert *x509.Cert
 	mac.Write(tcertid.Bytes())
 	preK0 := mac.Sum(nil)
 
+	var err error
+	var encEnrollmentID []byte
+	var enrollmentIDerr error
 	// Compute encrypted EnrollmentID
-	mac = hmac.New(sha512.New384, preK0)
-	mac.Write([]byte("enrollmentID"))
-	enrollmentIDKey := mac.Sum(nil)[:32]
+	if enrollmentCert != nil {
+		mac = hmac.New(sha512.New384, preK0)
+		mac.Write([]byte("enrollmentID"))
+		enrollmentIDKey := mac.Sum(nil)[:32]
 
-	enrollmentID := []byte(GetEnrollmentIDFromCert(enrollmentCert))
-	enrollmentID = append(enrollmentID, Padding...)
+		enrollmentID := []byte(GetEnrollmentIDFromCert(enrollmentCert))
+		enrollmentID = append(enrollmentID, Padding...)
 
-	encEnrollmentID, err := CBCPKCS7Encrypt(enrollmentIDKey, enrollmentID)
-	if err != nil {
-		return nil, nil, err
+		encEnrollmentID, enrollmentIDerr = CBCPKCS7Encrypt(enrollmentIDKey, enrollmentID)
+		if enrollmentIDerr != nil {
+			return nil, nil, err
+		}
+
+		// save k used to encrypt EnrollmentID
+		ks["enrollmentId"] = enrollmentIDKey
 	}
-
-	// save k used to encrypt EnrollmentID
-	ks["enrollmentId"] = enrollmentIDKey
 
 	attributeIdentifierIndex := 9
 	count := 0
@@ -266,10 +315,14 @@ func generateExtensions(tcertid *big.Int, tidx []byte, enrollmentCert *x509.Cert
 	}
 
 	// Append the TCertIndex to the extensions
-	extensions = append(extensions, pkix.Extension{Id: TCertEncTCertIndex, Critical: true, Value: tidx})
+	if tidx != nil {
+		extensions = append(extensions, pkix.Extension{Id: TCertEncTCertIndex, Critical: true, Value: tidx})
+	}
 
 	// Append the encrypted EnrollmentID to the extensions
-	extensions = append(extensions, pkix.Extension{Id: TCertEncEnrollmentID, Critical: false, Value: encEnrollmentID})
+	if enrollmentCert != nil {
+		extensions = append(extensions, pkix.Extension{Id: TCertEncEnrollmentID, Critical: false, Value: encEnrollmentID})
+	}
 
 	// Append the attributes header if there was attributes to include in the TCert
 	if len(attrs) > 0 {

@@ -47,7 +47,7 @@ type GetBatchRequest struct {
 type GetBatchResponse struct {
 	ID     *big.Int  `json:"id"`
 	TS     time.Time `json:"ts"`
-	Key    []byte    `json:"key"`
+	Key    []byte    `json:"key,omitempty"`
 	TCerts []TCert   `json:"tcerts"`
 }
 
@@ -61,4 +61,12 @@ type TCert struct {
 type Attribute struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
+}
+
+// GetBatchGenKeyRequest contains TCert request where public key is being provided by caller
+type GetBatchGenKeyRequest struct {
+	//BatchRequest contains attribute and validity period values
+	BatchRequest GetBatchRequest
+	//PublicKeys is array of public key bytes that needs to be signed
+	PublicKeys [][]byte
 }

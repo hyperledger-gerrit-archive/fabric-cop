@@ -18,6 +18,8 @@ package tcert
 
 import (
 	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
@@ -25,6 +27,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"testing"
+	"time"
 
 	"github.com/cloudflare/cfssl/log"
 )
@@ -84,19 +87,127 @@ func TestTCertWitAttributes(t *testing.T) {
 		},
 	}
 	resp, err := mgr.GetBatch(&GetBatchRequest{
-		Count:        2,
+		Count:        10,
 		EncryptAttrs: true,
 		Attrs:        Attrs,
-		PreKey:       "anotherprekey",
+		PreKey:       "S5i15SgeDdd1pYVmaeA92B30Gq1cY8HHpoMHN5qpEu+ioK0gdUsJP2XI4wK43AQh",
 	}, ecert)
 	if err != nil {
 		t.Errorf("Error from GetBatch: %s", err)
 		return
 	}
-	if len(resp.TCerts) != 2 {
+	if len(resp.TCerts) != 10 {
 		t.Errorf("Returned incorrect number of certs: expecting 2 but found %d", len(resp.TCerts))
 	}
 
+}
+
+// TestTcertWithClientGeneratedKey Tests TCert generated for locally created Key Pairs
+func TestTcertWithClientGeneratedKeyWithoutAttribute(t *testing.T) {
+	// Get a manager configured with 10 minute lifetime for generated TCerts
+	mgr := getMgr("10m", t)
+	if mgr == nil {
+		return
+	}
+
+	publicKeySet, publicKeyError := generateTestPublicKeys(t)
+	if publicKeyError != nil {
+		t.Logf("Error in generatingc[%v]", publicKeyError)
+	}
+	duration, durartionParseerror := time.ParseDuration("10h")
+	if durartionParseerror != nil {
+		t.Logf("time parse error [%v]", durartionParseerror)
+	}
+	tcertResponse, tcertResponseError := mgr.GetBatchForGeneratedKey(&GetBatchGenKeyRequest{
+		BatchRequest: GetBatchRequest{
+			PreKey:         "anyroot",
+			ValidityPeriod: duration,
+		},
+		PublicKeys: publicKeySet,
+	})
+	if tcertResponseError != nil {
+		t.Errorf("Error from GetBatchForGeneratedKey: %s", tcertResponseError)
+		return
+	}
+	if len(tcertResponse.TCerts) != 2 {
+		t.Errorf("Returned incorrect number of certs: expecting 2 but found %d", len(tcertResponse.TCerts))
+	}
+
+}
+
+// TestTcertWithClientGeneratedKey Tests TCert generated for locally created Key Pairs
+func TestTcertWithClientGeneratedKeyWithAttribute(t *testing.T) {
+	// Get a manager configured with 10 minute lifetime for generated TCerts
+	mgr := getMgr("10m", t)
+	if mgr == nil {
+		return
+	}
+
+	publicKeySet, publicKeyError := generateTestPublicKeys(t)
+	if publicKeyError != nil {
+		t.Logf("Error in generatingc[%v]", publicKeyError)
+	}
+	duration, durartionParseerror := time.ParseDuration("10h")
+	if durartionParseerror != nil {
+		t.Logf("time parse error [%v]", durartionParseerror)
+	}
+	var Attrs = []Attribute{
+		{
+			Name:  "SSN",
+			Value: "123-456-789",
+		},
+
+		{
+			Name:  "Income",
+			Value: "USD",
+		},
+	}
+
+	tcertResponse, tcertResponseError := mgr.GetBatchForGeneratedKey(&GetBatchGenKeyRequest{
+		BatchRequest: GetBatchRequest{
+			PreKey:         "S5i15SgeDdd1pYVmaeA92B30Gq1cY8HHpoMHN5qpEu+ioK0gdUsJP2XI4wK43AQh",
+			ValidityPeriod: duration,
+			EncryptAttrs:   true,
+			Attrs:          Attrs,
+		},
+		PublicKeys: publicKeySet,
+	})
+	if tcertResponseError != nil {
+		t.Errorf("Error from GetBatchForGeneratedKey: %s", tcertResponseError)
+		return
+	}
+	if len(tcertResponse.TCerts) != 2 {
+		t.Errorf("Returned incorrect number of certs: expecting 2 but found %d", len(tcertResponse.TCerts))
+	}
+
+}
+
+// This method generates array of ecdsa public key bytes
+func generateTestPublicKeys(t *testing.T) ([][]byte, error) {
+	//Generate Key Pair and Crete Map
+	var privKey *ecdsa.PrivateKey
+	var publicKeyraw []byte
+	var pemEncodedPublicKey []byte
+	var privKeyError error
+	var pemEncodingError error
+	var set [][]byte
+	for i := 0; i < 2; i++ {
+		privKey, privKeyError = ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+		if privKeyError != nil {
+			t.Logf("Error  == [%v] ==  generating Private Key ", privKeyError)
+			return nil, privKeyError
+		}
+
+		publicKeyraw, pemEncodingError = x509.MarshalPKIXPublicKey(privKey.Public())
+		if pemEncodingError != nil {
+			t.Logf("Error == [%v] == pem encoding public Key", pemEncodingError)
+			return nil, pemEncodingError
+		}
+		pemEncodedPublicKey = ConvertDERToPEM(publicKeyraw, "PUBLIC KEY")
+
+		set = append(set, pemEncodedPublicKey)
+	}
+	return set, nil
 }
 
 func getMgr(validityPeriod string, t *testing.T) *Mgr {
