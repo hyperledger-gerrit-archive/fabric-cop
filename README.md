@@ -136,7 +136,7 @@ key is used to authenticate to the COP server.
 
 ```
 # cd $COP/bin
-# ./cop client reenroll ../testdata/csr.json http://localhost:8888
+# ./cop client reenroll http://localhost:8888
 ```
 
 Note that this updates the enrollment material in the `$COP_HOME/client.json` file.
