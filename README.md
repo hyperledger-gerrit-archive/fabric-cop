@@ -57,11 +57,11 @@ you may issue any cfssl command with the `cop cfssl` command prefix.
 
 **max_enrollments (Default: 1)** - Allows you to specify how many times a user can use its one time password to enroll itself. Setting it to 0 will allow for unlimited enrollments.
 
-### Initialize the COP server  
+### Initialize the COP server
 
 Executing the following "COP" command will generate a private key and self-signed x509 certificate to start the
 COP server in the `Start the COP server` section. These two PEM files will be generated and stored in the directory
-`$COP_HOME/.cop/`:  
+`$COP_HOME/.cop/`:
 server-cert.pem and server-key.pem.
 They can be used as input parameters to `-ca` and `-ca-key` in the command to start the COP server.
 
@@ -75,7 +75,7 @@ RSA and Elliptic Curve (ECDSA).
 The following setting is an example of the implementation of Elliptic Curve Digital Signature Algorithm (ECDSA) with curve:
 secp384r1 and Signature Algorithm: ecdsa-with-SHA384:
 
-"algo": "ecdsa"  
+"algo": "ecdsa"
 "size": 384
 
 The choice of algorithm and key size are based on security needs.
@@ -159,7 +159,7 @@ registerrequest.json:
 
 ```
 {
-  "id": "User1",
+  "user": "User1",
   "type": "client",
   "group": "bank_a",
   "attrs": [{"name":"AttributeName","value":"AttributeValue"}]
@@ -179,7 +179,7 @@ The COP server can be configured to read from an LDAP server.
 
 In particular, the COP server may connect to an LDAP server to do the following:
 
-   * authenticate a user prior to enrollment, and   
+   * authenticate a user prior to enrollment, and
    * retrieve a user's attribute values which is used for authorization.
 
 In order to configure the COP server to connect to an LDAP server, add a section of the following form to your COP server's configuration file:
@@ -192,13 +192,13 @@ In order to configure the COP server to connect to an LDAP server, add a section
    }
 ```
 
-where:  
-   * `scheme` is one of *ldap* or *ldaps*;  
-   * `adminDN` is the distinquished name of the admin user;  
-   * `pass` is the password of the admin user;   
-   * `host` is the hostname or IP address of the LDAP server;  
-   * `port` is the optional port number, where default 389 for *ldap* and 636 for *ldaps*;  
-   * `base` is the optional root of the LDAP tree to use for searches;  
+where:
+   * `scheme` is one of *ldap* or *ldaps*;
+   * `adminDN` is the distinquished name of the admin user;
+   * `pass` is the password of the admin user;
+   * `host` is the hostname or IP address of the LDAP server;
+   * `port` is the optional port number, where default 389 for *ldap* and 636 for *ldaps*;
+   * `base` is the optional root of the LDAP tree to use for searches;
    * `filter` is a filter to use when searching to convert a login user name to a distinquished name.  For example, a value of `(uid=%s)` searches for LDAP entries with the value of a `uid` attribute whose value is the login user name.  Similarly, `(email=%s)` may be used to login with an email address.
 
 The following is a sample configuration section for the default settings for the OpenLDAP server whose docker image is at `https://github.com/osixia/docker-openldap`.
@@ -214,12 +214,12 @@ See `COP/testdata/testconfig-ldap.json` for the complete configuration file with
 
 ##### When LDAP is configured, enrollment works as follows:
 
-  * A COP client or client SDK sends an enrollment request with a basic authorization header.  
+  * A COP client or client SDK sends an enrollment request with a basic authorization header.
   * The COP server receives the enrollment request, decodes the user/pass in the authorization header, looks up the DN (Distinquished Name) associated with the user using the "userfilter" from the configuration file, and then attempts an LDAP bind with the user's password. If successful, the enrollment processing is authorized and can proceed.
 
 ##### When LDAP is configured, attribute retrieval works as follows:
 
-   * A client SDK sends a request for a batch of tcerts *with one or more attributes*to the COP server.  
+   * A client SDK sends a request for a batch of tcerts *with one or more attributes*to the COP server.
    * The COP server receives the tcert request and does as follows:
        * extracts the enrollment ID from the token in the authorization header (after validating the token);
        * does an LDAP search/query to the LDAP server, requesting all of the attribute names received in the tcert request;
@@ -266,7 +266,7 @@ cop.json
 
 Change "host" and "dbname" to reflect where your database is located and the database you would like to connect to. Default port is used if none is specified. Enter username and password for a user that has permission to connect to the database.
 
-Once your proxy, COP servers, and Postgres server are all running you can have your client direct traffic to the proxy server which will load balance and direct traffic to the appropriate COP server which will read/write from the Postgres database.  
+Once your proxy, COP servers, and Postgres server are all running you can have your client direct traffic to the proxy server which will load balance and direct traffic to the appropriate COP server which will read/write from the Postgres database.
 
 #### MySQL
 
@@ -282,7 +282,7 @@ cop.json
 
 Change the host to reflect where your database is located. The database is specified after the '/', specify the database you would like to connect to. Default port is used if none is specified.
 
-Once your proxy, COP servers, and database servers are all running you can have your clients direct traffic to the proxy server which will load balance and direct traffic to the appropriate COP server which will read/write from the database.  
+Once your proxy, COP servers, and database servers are all running you can have your clients direct traffic to the proxy server which will load balance and direct traffic to the appropriate COP server which will read/write from the database.
 
 ### Run the cop tests
 
