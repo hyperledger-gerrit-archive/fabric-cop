@@ -1,3 +1,29 @@
+
+Tables of Contents:
+
+<!-- MDTOC maxdepth:6 firsth1:1 numbering:0 flatten:0 bullets:1 updateOnSave:1 -->
+
+- [COP](#cop)   
+   - [Getting Started](#getting-started)   
+      - [Prerequisites](#prerequisites)   
+      - [Download and build the COP executable](#download-and-build-the-cop-executable)   
+      - [Explore the COP CLI](#explore-the-cop-cli)   
+      - [COP server configuration options](#cop-server-configuration-options)   
+      - [Initialize the COP server](#initialize-the-cop-server)   
+         - [CSR File Description](#csr-file-description)   
+      - [Start the COP server](#start-the-cop-server)   
+      - [Enroll the admin client](#enroll-the-admin-client)   
+      - [Reenroll](#reenroll)   
+      - [Register a new user](#register-a-new-user)   
+      - [LDAP](#ldap)   
+            - [When LDAP is configured, enrollment works as follows:](#when-ldap-is-configured-enrollment-works-as-follows)   
+            - [When LDAP is configured, attribute retrieval works as follows:](#when-ldap-is-configured-attribute-retrieval-works-as-follows)   
+      - [Setting up a cluster](#setting-up-a-cluster)   
+         - [Postgres](#postgres)   
+         - [MySQL](#mysql)   
+      - [Run the cop tests](#run-the-cop-tests)   
+
+<!-- /MDTOC -->
 # COP
 
 COP is the name for Membership Services in v1.0 of Hyperledger Fabric.  COP is not an acronym.  The name "COP" was selected because of the following.
@@ -95,6 +121,37 @@ Likewise, these are the secure choices for RSA modulus:
 | 2048      | 2048 | sha256WithRSAEncryption |
 | 4096      | 4096 | sha512WithRSAEncryption |
 
+#### CSR File Description
+
+| Field        | Description           | Example |
+|-------------|:-------------:|:-----:|
+| hosts      | D<!-- MDTOC maxdepth:6 firsth1:1 numbering:0 flatten:0 bullets:1 updateOnSave:1 -->
+
+- [COP](#cop)   
+   - [Getting Started](#getting-started)   
+      - [Prerequisites](#prerequisites)   
+      - [Download and build the COP executable](#download-and-build-the-cop-executable)   
+      - [Explore the COP CLI](#explore-the-cop-cli)   
+      - [COP server configuration options](#cop-server-configuration-options)   
+      - [Initialize the COP server](#initialize-the-cop-server)   
+         - [CSR File Description](#csr-file-description)   
+      - [Start the COP server](#start-the-cop-server)   
+      - [Enroll the admin client](#enroll-the-admin-client)   
+      - [Reenroll](#reenroll)   
+      - [Register a new user](#register-a-new-user)   
+      - [LDAP](#ldap)   
+            - [When LDAP is configured, enrollment works as follows:](#when-ldap-is-configured-enrollment-works-as-follows)   
+            - [When LDAP is configured, attribute retrieval works as follows:](#when-ldap-is-configured-attribute-retrieval-works-as-follows)   
+      - [Setting up a cluster](#setting-up-a-cluster)   
+         - [Postgres](#postgres)   
+         - [MySQL](#mysql)   
+      - [Run the cop tests](#run-the-cop-tests)   
+
+<!-- /MDTOC -->omain names which the certificate should be valid for. | www.example.com |
+| CN      | value used by some CAs to determine which domain the certificate is to be generated for.      |   TCA |
+| key | the algorithm and key size for the certificate     | "algo": ecdsa <br> "size": 384 |
+| names | a list of name objects. Each name object should contain at least one "C", "L", "O", "OU", or "ST"      | "C": country <br> "O": organization <br> "ST": state |
+
 
 ### Start the COP server
 
@@ -120,7 +177,29 @@ to the COP server will require a JWT-like token, but this work is not yet comple
 See the `$COP/testdata/cop.json` file and note the "admin" user with a password of "adminpw".
 The following command gets an ecert for the admin user.
 
-```
+```<!-- MDTOC maxdepth:6 firsth1:1 numbering:0 flatten:0 bullets:1 updateOnSave:1 -->
+
+- [COP](#cop)   
+   - [Getting Started](#getting-started)   
+      - [Prerequisites](#prerequisites)   
+      - [Download and build the COP executable](#download-and-build-the-cop-executable)   
+      - [Explore the COP CLI](#explore-the-cop-cli)   
+      - [COP server configuration options](#cop-server-configuration-options)   
+      - [Initialize the COP server](#initialize-the-cop-server)   
+         - [CSR File Description](#csr-file-description)   
+      - [Start the COP server](#start-the-cop-server)   
+      - [Enroll the admin client](#enroll-the-admin-client)   
+      - [Reenroll](#reenroll)   
+      - [Register a new user](#register-a-new-user)   
+      - [LDAP](#ldap)   
+            - [When LDAP is configured, enrollment works as follows:](#when-ldap-is-configured-enrollment-works-as-follows)   
+            - [When LDAP is configured, attribute retrieval works as follows:](#when-ldap-is-configured-attribute-retrieval-works-as-follows)   
+      - [Setting up a cluster](#setting-up-a-cluster)   
+         - [Postgres](#postgres)   
+         - [MySQL](#mysql)   
+      - [Run the cop tests](#run-the-cop-tests)   
+
+<!-- /MDTOC -->
 # cd $COP/bin
 # ./cop client enroll admin adminpw http://localhost:8888
 ```
