@@ -190,16 +190,6 @@ func (lc *Client) DeleteUser(id string) error {
 	return errNotSupported
 }
 
-// GetField retrieves a field of a user record
-func (lc *Client) GetField(id string, field int) (interface{}, error) {
-	return nil, errNotSupported
-}
-
-// UpdateField updates a field of a user record
-func (lc *Client) UpdateField(id string, field int, value interface{}) error {
-	return errNotSupported
-}
-
 // GetGroup returns an affiliation group
 func (lc *Client) GetGroup(name string) (spi.Group, error) {
 	return nil, errNotSupported

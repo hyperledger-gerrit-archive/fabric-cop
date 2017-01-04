@@ -26,6 +26,7 @@ import (
 	"github.com/cloudflare/cfssl/api"
 	"github.com/cloudflare/cfssl/log"
 
+	"github.com/hyperledger/fabric-cop/cli/server/spi"
 	"github.com/hyperledger/fabric-cop/idp"
 	"github.com/hyperledger/fabric-cop/util"
 )
@@ -83,26 +84,34 @@ func (h *revokeHandler) Handle(w http.ResponseWriter, r *http.Request) error {
 			return notFound(w, err)
 		}
 	} else if req.Name != "" {
-		_, err := userRegistry.GetUser(req.Name, nil)
+
+		user, err := userRegistry.GetUser(req.Name, nil)
 		if err != nil {
 			err = fmt.Errorf("Failed to get user %s: %s", req.Name, err)
 			return notFound(w, err)
 		}
 
-		err = userRegistry.UpdateField(req.Name, state, -1)
-		if err != nil {
-			err = fmt.Errorf("Failed to disable user %s: %s", req.Name, err)
-			log.Warningf("%s", err)
-			return dbErr(w, err)
+		// Set user state to -1 if the user has been revoked
+		if user != nil {
+			var userInfo = spi.UserInfo{
+				Name:           user.(*DBUser).Name,
+				Pass:           user.(*DBUser).Pass,
+				Attributes:     user.(*DBUser).Attributes,
+				Group:          user.(*DBUser).Group,
+				Type:           user.(*DBUser).Type,
+				State:          -1,
+				MaxEnrollments: user.(*DBUser).MaxEnrollments,
+			}
+
+			err = userRegistry.UpdateUser(userInfo)
+			if err != nil {
+				log.Warningf("Revoke failed: %s", err)
+				return dbErr(w, err)
+			}
 		}
-		_, err = certDBAccessor.RevokeCertificatesByID(req.Name, req.Reason)
-		if err != nil {
-			err = fmt.Errorf("Failed to revoke certificates for user %s: %s", req.Name, err)
-			log.Warningf("%s", err)
-			return dbErr(w, err)
-		}
+
 	} else {
-		return badRequest(w, errors.New("either Name or Serial and AKI are required for a revoke request"))
+		return badRequest(w, errors.New("Either Name or Serial and AKI are required for a revoke request"))
 	}
 
 	log.Debug("Revoke was successful: %+v", req)
