@@ -39,8 +39,8 @@ func init() {
 
 const (
 	insertUser = `
-INSERT INTO users (id, token, type, user_group, attributes, state, max_enrollments)
-	VALUES (:id, :token, :type, :user_group, :attributes, :state, :max_enrollments);`
+INSERT INTO users (id, token, type, affiliation_path, attributes, state, max_enrollments)
+	VALUES (:id, :token, :type, :affiliation_path, :attributes, :state, :max_enrollments);`
 
 	deleteUser = `
 DELETE FROM users
@@ -48,7 +48,7 @@ DELETE FROM users
 
 	updateUser = `
 UPDATE users
-	SET token = :token, type = :type, user_group = :user_group, attributes = :attributes
+	SET token = :token, type = :type, affiliation_path = :affiliation_path, attributes = :attributes
 	WHERE (id = :id);`
 
 	getUser = `
@@ -70,13 +70,13 @@ SELECT name, parent_id FROM groups
 
 // UserRecord defines the properties of a user
 type UserRecord struct {
-	Name           string `db:"id"`
-	Pass           string `db:"token"`
-	Type           string `db:"type"`
-	Group          string `db:"user_group"`
-	Attributes     string `db:"attributes"`
-	State          int    `db:"state"`
-	MaxEnrollments int    `db:"max_enrollments"`
+	Name            string `db:"id"`
+	Pass            string `db:"token"`
+	Type            string `db:"type"`
+	AffiliationPath string `db:"affiliation_path"`
+	Attributes      string `db:"attributes"`
+	State           int    `db:"state"`
+	MaxEnrollments  int    `db:"max_enrollments"`
 }
 
 // GroupRecord defines the properties of a group
@@ -124,13 +124,13 @@ func (d *Accessor) InsertUser(user spi.UserInfo) error {
 	}
 
 	res, err := d.db.NamedExec(insertUser, &UserRecord{
-		Name:           user.Name,
-		Pass:           user.Pass,
-		Type:           user.Type,
-		Group:          user.Group,
-		Attributes:     string(attrBytes),
-		State:          user.State,
-		MaxEnrollments: user.MaxEnrollments,
+		Name:            user.Name,
+		Pass:            user.Pass,
+		Type:            user.Type,
+		AffiliationPath: user.AffiliationPath,
+		Attributes:      string(attrBytes),
+		State:           user.State,
+		MaxEnrollments:  user.MaxEnrollments,
 	})
 
 	if err != nil {
@@ -187,13 +187,13 @@ func (d *Accessor) UpdateUser(user spi.UserInfo) error {
 	}
 
 	res, err := d.db.NamedExec(updateUser, &UserRecord{
-		Name:           user.Name,
-		Pass:           user.Pass,
-		Type:           user.Type,
-		Group:          user.Group,
-		Attributes:     string(attributes),
-		State:          user.State,
-		MaxEnrollments: user.MaxEnrollments,
+		Name:            user.Name,
+		Pass:            user.Pass,
+		Type:            user.Type,
+		AffiliationPath: user.AffiliationPath,
+		Attributes:      string(attributes),
+		State:           user.State,
+		MaxEnrollments:  user.MaxEnrollments,
 	})
 
 	if err != nil {
@@ -235,7 +235,7 @@ func (d *Accessor) GetUser(id string, attrs ...string) (spi.User, error) {
 
 // InsertGroup inserts group into database
 func (d *Accessor) InsertGroup(name string, parentID string) error {
-	log.Debugf("DB: Insert Group (%s)", name)
+	log.Debugf("DB: Insert Group (%s), Parent: %s", name, parentID)
 	err := d.checkDB()
 	if err != nil {
 		return err
@@ -298,8 +298,14 @@ func (d *Accessor) GetRootGroup() (spi.Group, error) {
 	if err != nil {
 		return nil, err
 	}
-	// TODO: IMPLEMENT
-	return nil, errors.New("NOT YET IMPLEMENTED")
+
+	var groupInfo spi.GroupInfo
+	err = d.db.Get(&groupInfo, d.db.Rebind("Select name from groups where parent_id=''"))
+	if err != nil {
+		return nil, err
+	}
+
+	return &groupInfo, nil
 }
 
 // Creates a DBUser object from the DB user record
@@ -309,7 +315,7 @@ func (d *Accessor) newDBUser(userRec *UserRecord) *DBUser {
 	user.Pass = userRec.Pass
 	user.State = userRec.State
 	user.MaxEnrollments = userRec.MaxEnrollments
-	user.Group = userRec.Group
+	user.AffiliationPath = userRec.AffiliationPath
 	user.Type = userRec.Type
 
 	var attrs []idp.Attribute
@@ -390,7 +396,7 @@ func (u *DBUser) Login(pass string) error {
 
 // GetAffiliationPath returns the complete path for the user's affiliation.
 func (u *DBUser) GetAffiliationPath() []string {
-	affiliationPath := strings.Split(u.Group, "/")
+	affiliationPath := strings.Split(u.AffiliationPath, "/")
 	return affiliationPath
 }
 

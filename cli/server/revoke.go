@@ -94,13 +94,13 @@ func (h *revokeHandler) Handle(w http.ResponseWriter, r *http.Request) error {
 		// Set user state to -1 if the user has been revoked
 		if user != nil {
 			var userInfo = spi.UserInfo{
-				Name:           user.(*DBUser).Name,
-				Pass:           user.(*DBUser).Pass,
-				Attributes:     user.(*DBUser).Attributes,
-				Group:          user.(*DBUser).Group,
-				Type:           user.(*DBUser).Type,
-				State:          -1,
-				MaxEnrollments: user.(*DBUser).MaxEnrollments,
+				Name:            user.(*DBUser).Name,
+				Pass:            user.(*DBUser).Pass,
+				Attributes:      user.(*DBUser).Attributes,
+				AffiliationPath: user.(*DBUser).AffiliationPath,
+				Type:            user.(*DBUser).Type,
+				State:           -1,
+				MaxEnrollments:  user.(*DBUser).MaxEnrollments,
 			}
 
 			err = userRegistry.UpdateUser(userInfo)
