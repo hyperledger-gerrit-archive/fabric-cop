@@ -158,11 +158,12 @@ func (r *Register) registerUserID(id string, userType string, group string, attr
 	}
 
 	insert := spi.UserInfo{
-		Name:       id,
-		Pass:       tok,
-		Type:       userType,
-		Group:      group,
-		Attributes: attributes,
+		Name:           id,
+		Pass:           tok,
+		Type:           userType,
+		Group:          group,
+		Attributes:     attributes,
+		MaxEnrollments: CFG.UsrReg.MaxEnrollments,
 	}
 
 	_, err := userRegistry.GetUser(id, nil)
@@ -172,11 +173,6 @@ func (r *Register) registerUserID(id string, userType string, group string, attr
 	}
 
 	err = userRegistry.InsertUser(insert)
-	if err != nil {
-		return "", err
-	}
-
-	err = userRegistry.UpdateField(id, maxEnrollments, CFG.UsrReg.MaxEnrollments)
 	if err != nil {
 		return "", err
 	}
