@@ -26,7 +26,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 
 	rice "github.com/GeertJohan/go.rice"
 	"github.com/cloudflare/cfssl/api"
@@ -41,7 +40,6 @@ import (
 	"github.com/cloudflare/cfssl/api/signhandler"
 	"github.com/cloudflare/cfssl/bundler"
 	"github.com/cloudflare/cfssl/cli"
-	"github.com/cloudflare/cfssl/cli/ocspsign"
 	"github.com/cloudflare/cfssl/config"
 	"github.com/cloudflare/cfssl/helpers"
 	"github.com/cloudflare/cfssl/log"
@@ -49,7 +47,8 @@ import (
 	"github.com/cloudflare/cfssl/signer"
 	"github.com/cloudflare/cfssl/signer/universal"
 	"github.com/cloudflare/cfssl/ubiquity"
-	cop "github.com/hyperledger/fabric-cop/api"
+	"github.com/hyperledger/fabric-cop/cli/server/spi"
+	"github.com/hyperledger/fabric-cop/util"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -79,11 +78,14 @@ Flags:
 )
 
 var (
-	conf       cli.Config
-	s          signer.Signer
-	ocspSigner ocsp.Signer
-	db         *sqlx.DB
-	mutex      = &sync.RWMutex{}
+	conf           cli.Config
+	enrollSigner   signer.Signer
+	ocspSigner     ocsp.Signer
+	db             *sqlx.DB
+	home           string
+	configFile     string
+	userRegistry   spi.UserRegistry
+	certDBAccessor *CertDBAccessor
 )
 
 var (
@@ -157,7 +159,6 @@ func startMain(args []string, c cli.Config) error {
 	}
 	configInit(&c)
 	cfg := CFG
-	cfg.Home = home
 
 	if cfg.DataSource == "" {
 		msg := "No database specified, a database is needed to run COP server. Using default - Type: SQLite, Name: cop.db"
@@ -167,22 +168,27 @@ func startMain(args []string, c cli.Config) error {
 	}
 
 	if cfg.DBdriver == sqlite {
-		cfg.DataSource = filepath.Join(cfg.Home, cfg.DataSource)
+		cfg.DataSource = filepath.Join(home, cfg.DataSource)
 	}
 
 	// Initialize the user registry
 	err = InitUserRegistry(cfg)
 	if err != nil {
-		log.Error("Failed to initialize user registry")
+		log.Errorf("Failed to initialize user registry [error: %s]", err)
 		return err
 	}
 
-	mySigner, err := SignerFromConfigAndDB(c, db)
+	csp, err := util.InitBCCSP(home)
 	if err != nil {
-		log.Errorf("SignerFromConfigAndDB error: %s", err)
-		return cop.WrapError(err, cop.CFSSL, "failed in SignerFromConfigAndDB")
+		return fmt.Errorf("Failed getting BCCSP [%s]", err.Error())
 	}
-	cfg.Signer = mySigner
+	if csp == nil {
+		return fmt.Errorf("CSP is NIL")
+	}
+
+	CFG.csp = csp
+
+	universal.AddLocalSignerToList(bccspBackedSigner)
 
 	return serverMain(args, c)
 }
@@ -205,7 +211,11 @@ func serverMain(args []string, c cli.Config) error {
 
 	log.Info("Initializing signer")
 
-	if ocspSigner, err = ocspsign.SignerFromConfig(c); err != nil {
+	if enrollSigner, err = SignerFromConfigAndDB(c, db); err != nil {
+		log.Warningf("couldn't initialize signer: %v", err)
+	}
+
+	if ocspSigner, err = ocspSignerFromConfig(c); err != nil {
 		log.Warningf("couldn't initialize ocsp signer: %v", err)
 	}
 
@@ -303,38 +313,38 @@ var endpoints = map[string]func() (http.Handler, error){
 
 	// The remainder are the CFSSL endpoints
 	"sign": func() (http.Handler, error) {
-		if s == nil {
+		if enrollSigner == nil {
 			return nil, errBadSigner
 		}
-		return signhandler.NewHandlerFromSigner(s)
+		return signhandler.NewHandlerFromSigner(enrollSigner)
 	},
 
 	"authsign": func() (http.Handler, error) {
-		if s == nil {
+		if enrollSigner == nil {
 			return nil, errBadSigner
 		}
-		return signhandler.NewAuthHandlerFromSigner(s)
+		return signhandler.NewAuthHandlerFromSigner(enrollSigner)
 	},
 
 	"info": func() (http.Handler, error) {
-		if s == nil {
+		if enrollSigner == nil {
 			return nil, errBadSigner
 		}
-		return info.NewHandler(s)
+		return info.NewHandler(enrollSigner)
 	},
 
 	"gencrl": func() (http.Handler, error) {
-		if s == nil {
+		if enrollSigner == nil {
 			return nil, errBadSigner
 		}
 		return crl.NewHandler(), nil
 	},
 
 	"newcert": func() (http.Handler, error) {
-		if s == nil {
+		if enrollSigner == nil {
 			return nil, errBadSigner
 		}
-		h := generator.NewCertGeneratorHandlerFromSigner(generator.CSRValidate, s)
+		h := generator.NewCertGeneratorHandlerFromSigner(generator.CSRValidate, enrollSigner)
 		if conf.CABundleFile != "" && conf.IntBundleFile != "" {
 			cg := h.(api.HTTPHandler).Handler.(*generator.CertGeneratorHandler)
 			if err := cg.SetBundler(conf.CABundleFile, conf.IntBundleFile); err != nil {
@@ -407,17 +417,17 @@ func SignerFromConfigAndDB(c cli.Config, db *sqlx.DB) (signer.Signer, error) {
 		}
 	}
 
-	s, err := universal.NewSigner(cli.RootFromConfig(&c), policy)
+	enrollSigner, err := universal.NewSigner(cli.RootFromConfig(&c), policy)
 	if err != nil {
 		return nil, err
 	}
 
 	if db != nil {
-		certAccessor := CertificateAccessor(db)
-		s.SetDBAccessor(certAccessor)
+		certAccessor := InitCertificateAccessor(db)
+		enrollSigner.SetDBAccessor(certAccessor)
 	}
 
-	return s, nil
+	return enrollSigner, nil
 }
 
 // Start will start server
@@ -426,7 +436,7 @@ func Start(dir string, cfg string) {
 	log.Debug("Server starting")
 	osArgs := os.Args
 	cert := filepath.Join(dir, "ec.pem")
-	key := filepath.Join(dir, "ec-key.pem")
+	key := filepath.Join(dir, "ec-key.ski")
 	config := filepath.Join(dir, cfg)
 	os.Args = []string{"server", "start", "-ca", cert, "-ca-key", key, "-config", config}
 	Command()
