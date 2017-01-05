@@ -19,6 +19,8 @@ package client
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -31,6 +33,8 @@ var serverExitCode = 0
 
 const (
 	clientPath = "/tmp/clientTesting"
+	KEY        = "../../testdata/ec-key.ski"
+	KEYSTORE   = "../../testdata/ks"
 )
 
 // TestNewClient tests constructing a client
@@ -214,6 +218,13 @@ func startServer() int {
 	} else {
 		os.RemoveAll(clientPath)
 		os.MkdirAll(clientPath, 0755)
+	}
+
+	os.MkdirAll(filepath.Join(filepath.Join(clientPath, "ks"), "ks"), 0755)
+	cpCmd := exec.Command("/bin/cp", "-Rf", KEYSTORE, clientPath)
+	err := cpCmd.Run()
+	if err != nil {
+		panic(fmt.Errorf("Failed copying keystore [%s]", err.Error()))
 	}
 
 	if !serverStarted {
