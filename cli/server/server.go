@@ -41,7 +41,6 @@ import (
 	"github.com/cloudflare/cfssl/api/signhandler"
 	"github.com/cloudflare/cfssl/bundler"
 	"github.com/cloudflare/cfssl/cli"
-	"github.com/cloudflare/cfssl/cli/ocspsign"
 	"github.com/cloudflare/cfssl/config"
 	"github.com/cloudflare/cfssl/helpers"
 	"github.com/cloudflare/cfssl/log"
@@ -109,31 +108,6 @@ func Command() error {
 type Server struct {
 }
 
-// CreateHome will create a home directory if it does not exist
-func (s *Server) CreateHome() (string, error) {
-	log.Debug("CreateHome")
-	home := os.Getenv("COP_HOME")
-	if home == "" {
-		home = os.Getenv("HOME")
-		if home != "" {
-			home = home + "/.cop"
-		}
-	}
-	if home == "" {
-		home = "/var/hyperledger/fabric/dev/.fabric-cop"
-	}
-	if _, err := os.Stat(home); err != nil {
-		if os.IsNotExist(err) {
-			err := os.MkdirAll(home, 0755)
-			if err != nil {
-				return "", err
-			}
-		}
-	}
-
-	return home, nil
-}
-
 // BootstrapDB loads the database based on config file
 func bootstrapDB() error {
 	log.Debug("Bootstrap DB")
@@ -150,14 +124,9 @@ func bootstrapDB() error {
 func startMain(args []string, c cli.Config) error {
 	log.Debug("server.startMain")
 
-	s := new(Server)
-	home, err := s.CreateHome()
-	if err != nil {
-		return err
-	}
+	//s := new(Server)
 	configInit(&c)
 	cfg := CFG
-	cfg.Home = home
 
 	if cfg.DataSource == "" {
 		msg := "No database specified, a database is needed to run COP server. Using default - Type: SQLite, Name: cop.db"
@@ -171,11 +140,13 @@ func startMain(args []string, c cli.Config) error {
 	}
 
 	// Initialize the user registry
-	err = InitUserRegistry(cfg)
+	err := InitUserRegistry(cfg)
 	if err != nil {
 		log.Error("Failed to initialize user registry")
 		return err
 	}
+
+	universal.AddLocalSignerToList(bccspBackedSigner)
 
 	mySigner, err := SignerFromConfigAndDB(c, db)
 	if err != nil {
@@ -205,7 +176,7 @@ func serverMain(args []string, c cli.Config) error {
 
 	log.Info("Initializing signer")
 
-	if ocspSigner, err = ocspsign.SignerFromConfig(c); err != nil {
+	if ocspSigner, err = ocspSignerFromConfig(c); err != nil {
 		log.Warningf("couldn't initialize ocsp signer: %v", err)
 	}
 
@@ -425,7 +396,7 @@ func Start(dir string, cfg string) {
 	log.Debug("Server starting")
 	osArgs := os.Args
 	cert := filepath.Join(dir, "ec.pem")
-	key := filepath.Join(dir, "ec-key.pem")
+	key := filepath.Join(dir, "ec-key.ski")
 	config := filepath.Join(dir, cfg)
 	os.Args = []string{"server", "start", "-ca", cert, "-ca-key", key, "-config", config}
 	Command()

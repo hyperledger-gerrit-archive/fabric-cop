@@ -28,6 +28,9 @@ import (
 	"github.com/hyperledger/fabric-cop/cli/server/ldap"
 	"github.com/hyperledger/fabric-cop/idp"
 	"github.com/hyperledger/fabric-cop/lib/tls"
+	"github.com/hyperledger/fabric/core/crypto/bccsp"
+	"github.com/hyperledger/fabric/core/crypto/bccsp/factory"
+	"github.com/hyperledger/fabric/core/crypto/bccsp/sw"
 
 	_ "github.com/mattn/go-sqlite3" // Needed to support sqlite
 )
@@ -45,9 +48,11 @@ type Config struct {
 	KeyFile        string           `json:"ca_key"`
 	TLSConf        TLSConfig        `json:"tls,omitempty"`
 	TLSDisable     bool             `json:"tls_disable,omitempty"`
+	Bccsp          *BccspConfig     `json:"bccsp,omitempty"`
 	Home           string
 	ConfigFile     string
 	Signer         signer.Signer
+	csp            bccsp.BCCSP
 }
 
 // UserReg defines the user registry properties
@@ -71,6 +76,11 @@ type User struct {
 	Attributes []idp.Attribute `json:"attrs,omitempty"`
 }
 
+// BccspConfig BCCSP configuration
+type BccspConfig struct {
+	Name string `json:"name"`
+}
+
 // Constructor for COP config
 func newConfig() *Config {
 	c := new(Config)
@@ -80,6 +90,31 @@ func newConfig() *Config {
 
 // CFG is the COP-specific config
 var CFG *Config
+
+// CreateHome will create a home directory if it does not exist
+func CreateHome() (string, error) {
+	log.Debug("CreateHome")
+	home := os.Getenv("COP_HOME")
+	if home == "" {
+		home = os.Getenv("HOME")
+		if home != "" {
+			home = home + "/.cop"
+		}
+	}
+	if home == "" {
+		home = "/var/hyperledger/production/.cop"
+	}
+	if _, err := os.Stat(home); err != nil {
+		if os.IsNotExist(err) {
+			err := os.MkdirAll(home, 0755)
+			if err != nil {
+				return "", err
+			}
+		}
+	}
+
+	return home, nil
+}
 
 // Init initializes the COP config given the CFSSL config
 func configInit(cfg *cli.Config) {
@@ -120,6 +155,31 @@ func configInit(cfg *cli.Config) {
 		}
 
 	}
+
+	home, err := CreateHome()
+	if err != nil {
+		panic(err.Error())
+	}
+	CFG.Home = home
+
+	// For now hardcode to use SW BCCSP
+	ks := &sw.FileBasedKeyStore{}
+	err = ks.Init(nil, home+"/ks", false)
+	if err != nil {
+		panic(fmt.Errorf("Failed initializing key store [%s]", err))
+	}
+
+	// For now hardcode the SW BCCSP. This should be made parametrizable via json cfg once there are more BCCSPs
+	bccspOpts := &factory.SwOpts{Ephemeral_: true, SecLevel: 256, HashFamily: "SHA2", KeyStore: ks}
+	csp, err := factory.GetBCCSP(bccspOpts)
+	if err != nil {
+		panic(fmt.Errorf("Failed getting BCCSP [%s]", err.Error()))
+	}
+	if csp == nil {
+		panic(fmt.Errorf("CSP is NIL"))
+	}
+
+	CFG.csp = csp
 
 	dbg := os.Getenv("COP_DEBUG")
 	if dbg != "" {
