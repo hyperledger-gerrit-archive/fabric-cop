@@ -18,6 +18,7 @@ limitations under the License.
 package idp
 
 import (
+	"math/big"
 	"time"
 
 	"github.com/cloudflare/cfssl/csr"
@@ -219,6 +220,36 @@ type GetPrivateSignersRequest struct {
 	AttrNames      []string      `json:"attr_names,omitempty"`
 	EncryptAttrs   bool          `json:"encrypt_attrs,omitempty"`
 	ValidityPeriod time.Duration `json:"validity_period,omitempty"`
+}
+
+// GetPrivateSignersGenKeyRequest in input for private signer where batch of public keys
+// are being provided by caller
+type GetPrivateSignersGenKeyRequest struct {
+	//BatchRequest contains paramters for TCert Request. Signature is calculated over this eleement.
+	PrivateSignerRequest *GetPrivateSignersRequest `json:"private_signer_request"`
+	//SignatureBatch is array of signature over PrivateSignnerRequest.
+	SignatureBatch []TemporalCrypto `json:"signature_batch"`
+}
+
+// TemporalCrypto contains Public Key and Signature Element
+type TemporalCrypto struct {
+	PublicKey []byte    `json:"public_key"`
+	Signature Signature `json:"signature"`
+}
+
+// Signature contains Elliptic Curve and RSA Signature Elements
+type Signature struct {
+	//HashAlgo is the algorithm used to calculate signature
+	//Possible values are SHA2_256 , SHA2_384 , SHA3_256 and SHA3_384
+	HashAlgo     string      `json:"hash_algo"`
+	ECSignature  ECSignature `json:"ecsignature,omitempty"`
+	RSASignature []byte      `json:"rsasignature,omitempty"`
+}
+
+// ECSignature contains Elliptic Curve Signature Elements
+type ECSignature struct {
+	R *big.Int `json:"r"`
+	S *big.Int `json:"r"`
 }
 
 // SignatureOpts are signature options
