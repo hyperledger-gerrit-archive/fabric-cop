@@ -31,8 +31,7 @@ import (
 
 func TestInitCA(t *testing.T) {
 
-	s := new(Server)
-	COPHome, err := s.CreateHome()
+	COPHome, err := CreateHome()
 	if err != nil {
 		log.Fatalf("Failed to get $COP_HOME directory.")
 	}
@@ -140,5 +139,50 @@ func TestInitCommand(t *testing.T) {
 	CSRJSON := "../../testdata/csr_dsa.json"
 	os.Args = []string{"server", "init", CSRJSON}
 	Command()
+	os.Args = osArgs
+}
+
+func TestBasicKeyRequest(t *testing.T) {
+	keyTypes := []csr.BasicKeyRequest{
+		csr.BasicKeyRequest{A: "ecdsa", S: 256},
+		csr.BasicKeyRequest{A: "ecdsa", S: 384},
+		//csr.BasicKeyRequest{A: "ecdsa", S: 521},
+		csr.BasicKeyRequest{A: "rsa", S: 2048},
+		csr.BasicKeyRequest{A: "rsa", S: 3072},
+		csr.BasicKeyRequest{A: "rsa", S: 4096},
+	}
+
+	osArgs := os.Args
+	CSRJSON := "../../testdata/csr.json"
+
+	csrFileBytes, err := ioutil.ReadFile(CSRJSON)
+	if err != nil {
+		t.Fatalf("Could not read file %s: %s", CSRJSON, err)
+	}
+
+	req := csr.CertificateRequest{
+		KeyRequest: csr.NewBasicKeyRequest(),
+	}
+	err = json.Unmarshal(csrFileBytes, &req)
+
+	for _, keyRequest := range keyTypes {
+		genCSR, err := ioutil.TempFile("", "csr-gen.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		req.KeyRequest.(*csr.BasicKeyRequest).A = keyRequest.A
+		req.KeyRequest.(*csr.BasicKeyRequest).S = keyRequest.S
+		reqJSON, _ := json.Marshal(req)
+
+		genCSR.Write(reqJSON)
+		os.Args = []string{"server", "init", genCSR.Name()}
+		err = Command()
+		if err != nil {
+			t.Fatalf("Could not generate cert for %s: %s", genCSR.Name(), err)
+		}
+		os.Remove(genCSR.Name())
+	}
+
 	os.Args = osArgs
 }
