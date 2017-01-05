@@ -40,7 +40,6 @@ import (
 	"github.com/cloudflare/cfssl/api/signhandler"
 	"github.com/cloudflare/cfssl/bundler"
 	"github.com/cloudflare/cfssl/cli"
-	"github.com/cloudflare/cfssl/cli/ocspsign"
 	"github.com/cloudflare/cfssl/config"
 	"github.com/cloudflare/cfssl/helpers"
 	"github.com/cloudflare/cfssl/log"
@@ -49,6 +48,7 @@ import (
 	"github.com/cloudflare/cfssl/signer/universal"
 	"github.com/cloudflare/cfssl/ubiquity"
 	"github.com/hyperledger/fabric-cop/cli/server/spi"
+	"github.com/hyperledger/fabric-cop/util"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -178,6 +178,18 @@ func startMain(args []string, c cli.Config) error {
 		return err
 	}
 
+	csp, err := util.InitBCCSP(home)
+	if err != nil {
+		return fmt.Errorf("Failed getting BCCSP [%s]", err.Error())
+	}
+	if csp == nil {
+		return fmt.Errorf("CSP is NIL")
+	}
+
+	CFG.csp = csp
+
+	universal.AddLocalSignerToList(bccspBackedSigner)
+
 	return serverMain(args, c)
 }
 
@@ -203,7 +215,7 @@ func serverMain(args []string, c cli.Config) error {
 		log.Warningf("couldn't initialize signer: %v", err)
 	}
 
-	if ocspSigner, err = ocspsign.SignerFromConfig(c); err != nil {
+	if ocspSigner, err = ocspSignerFromConfig(c); err != nil {
 		log.Warningf("couldn't initialize ocsp signer: %v", err)
 	}
 
@@ -424,7 +436,7 @@ func Start(dir string, cfg string) {
 	log.Debug("Server starting")
 	osArgs := os.Args
 	cert := filepath.Join(dir, "ec.pem")
-	key := filepath.Join(dir, "ec-key.pem")
+	key := filepath.Join(dir, "ec-key.ski")
 	config := filepath.Join(dir, cfg)
 	os.Args = []string{"server", "start", "-ca", cert, "-ca-key", key, "-config", config}
 	Command()

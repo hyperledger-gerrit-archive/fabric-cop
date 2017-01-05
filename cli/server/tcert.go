@@ -47,9 +47,9 @@ func NewTCertHandler() (h http.Handler, err error) {
 
 func initTCertHandler() (h http.Handler, err error) {
 	log.Debug("Initializing TCert handler")
-	csp, err := util.GetBCCSP(nil)
-	if err != nil {
-		return nil, err
+	csp := CFG.csp
+	if csp == nil {
+		return nil, fmt.Errorf("BCCSP was not initialized")
 	}
 	mgr, err := tcert.LoadMgr(CFG.KeyFile, CFG.CAFile)
 	if err != nil {

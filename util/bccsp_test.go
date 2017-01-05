@@ -17,16 +17,51 @@ limitations under the License.
 package util
 
 import (
+	"io/ioutil"
 	"testing"
 )
 
 func TestBCCSP(t *testing.T) {
-	csp, err := GetBCCSP(nil)
+	dir, err := ioutil.TempDir("", "home")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory [error: %s]", err)
+	}
+
+	csp, err := InitBCCSP(dir)
 	if err != nil {
 		t.Fatalf("GetBCCSP failed: %s", err)
 	}
 	_, err = GenRootKey(csp)
 	if err != nil {
 		t.Fatalf("GenRootKey failed: %s", err)
+	}
+}
+
+func TestBCCSPSignerFromSKI(t *testing.T) {
+	dir := "../testdata"
+
+	csp, err := InitBCCSP(dir)
+	if err != nil {
+		t.Fatalf("GetBCCSP failed: %s", err)
+	}
+
+	_, err = GetSignerFromSKIFile("../testdata/ec-key.ski", csp)
+	if err != nil {
+		t.Fatalf("Failed to load %s: %s", "../testdata/ec-key.ski", err)
+	}
+
+	_, err = GetSignerFromSKIFile("../testdata/ec-key.pem", csp)
+	if err == nil {
+		t.Fatalf("Expected failure, bad file")
+	}
+
+	_, err = GetSignerFromSKIFile("", csp)
+	if err == nil {
+		t.Fatalf("Expected failure, no file")
+	}
+
+	_, err = GetSignerFromSKIFile("../testdata/ec-key.ski", nil)
+	if err == nil {
+		t.Fatalf("Expected failure, no csp")
 	}
 }

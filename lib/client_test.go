@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -33,6 +34,7 @@ import (
 
 const (
 	ClientTLSConfig string = "cop_client.json"
+	KEYSTORE        string = "../testdata/ks"
 )
 
 var serverStarted bool
@@ -254,6 +256,13 @@ func startServer() int {
 	if err != nil {
 		fmt.Printf("Failed to create temp directory [error: %s]", err)
 		return serverExitCode
+	}
+
+	os.MkdirAll(filepath.Join(dir, "ks"), 0755)
+	cpCmd := exec.Command("/bin/cp", "-Rf", KEYSTORE, dir)
+	err = cpCmd.Run()
+	if err != nil {
+		panic(fmt.Errorf("Failed copying keystore [%s]", err.Error()))
 	}
 
 	if !serverStarted {

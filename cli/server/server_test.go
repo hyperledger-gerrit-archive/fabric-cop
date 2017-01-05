@@ -18,9 +18,11 @@ package server
 
 import (
 	"encoding/base64"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -31,11 +33,18 @@ import (
 	"github.com/hyperledger/fabric-cop/idp"
 	"github.com/hyperledger/fabric-cop/lib"
 	"github.com/hyperledger/fabric-cop/util"
+
+	"strings"
+
+	"github.com/hyperledger/fabric/core/crypto/bccsp"
+	cspfactory "github.com/hyperledger/fabric/core/crypto/bccsp/factory"
+	"github.com/hyperledger/fabric/core/crypto/bccsp/sw"
 )
 
 const (
 	CFGFile         = "testconfig2.json"
 	ClientTLSConfig = "cop_client.json"
+	KEYSTORE        = "../../testdata/ks"
 )
 
 var serverStarted bool
@@ -54,6 +63,13 @@ func startServer() {
 	if err != nil {
 		fmt.Printf("Failed to create temp directory [error: %s]", err)
 		return
+	}
+
+	os.MkdirAll(filepath.Join(dir, "ks"), 0755)
+	cpCmd := exec.Command("/bin/cp", "-Rf", KEYSTORE, dir)
+	err = cpCmd.Run()
+	if err != nil {
+		panic(fmt.Errorf("Failed copying keystore [%s]", err.Error()))
 	}
 
 	if !serverStarted {
@@ -95,7 +111,7 @@ func TestRegisterUser(t *testing.T) {
 
 	ID, err := c.Enroll(enrollReq)
 	if err != nil {
-		t.Error("Enroll of user 'admin' with password 'adminpw' failed")
+		t.Errorf("enroll of user 'admin' with password 'adminpw' failed [%s]", err.Error())
 		return
 	}
 
@@ -458,4 +474,51 @@ func testWithoutAuthHdr(c *lib.Client, t *testing.T) {
 	if err == nil {
 		t.Error("testWithAuthHdr.SendPost should have failed but passed")
 	}
+}
+
+// This 'test' is provided as a utility to convert from PEM encoded
+// software keys into BCCSP SKI files when new tests are being added
+// For example:
+//   go test -run TestGenerateSKIsFromPEM -args ../testdata/ec-key.pem ../testdata/test-key.pem
+func TestGenerateSKIsFromPEM(t *testing.T) {
+	t.SkipNow()
+
+	ks := &sw.FileBasedKeyStore{}
+	err := ks.Init(nil, "../testdata/ks", false)
+	if err != nil {
+		t.Fatalf("Failed initializing key store [%s]", err)
+	}
+
+	// For now hardcode the SW BCCSP. This should be made parametrizable via json cfg once there are more BCCSPs
+	bccspOpts := &cspfactory.SwOpts{Ephemeral_: true, SecLevel: 256, HashFamily: "SHA2", KeyStore: ks}
+	csp, err := cspfactory.GetBCCSP(bccspOpts)
+	if err != nil {
+		t.Fatalf("Failed getting BCCSP [%s]", err)
+	}
+
+	for _, name := range os.Args[2:] {
+		fmt.Printf("Parm to test is %s\n", name)
+		pemKeyToSKI(csp, name, strings.Replace(name, ".pem", ".ski", 1))
+	}
+}
+
+// PEMKeyToSKI imports PEM key into BCCSP key store and stores out to a file
+func pemKeyToSKI(csp bccsp.BCCSP, path, skiPath string) error {
+	keyBuff, err := ioutil.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("Cannot get Private Key [%s]", err.Error())
+	}
+	block, _ := pem.Decode(keyBuff)
+
+	k, err := csp.KeyImport(block.Bytes, &bccsp.ECDSAPrivateKeyImportOpts{Temporary: false})
+	if err != nil {
+		return fmt.Errorf("CA Private Key Object cannot be generated [%s]", err.Error())
+	}
+
+	skiEncoded := pem.EncodeToMemory(&pem.Block{Type: util.PemType, Bytes: k.SKI()})
+	err = ioutil.WriteFile(skiPath, skiEncoded, 0644)
+	if err != nil {
+		return fmt.Errorf("Cannot write Private Key SKI [%s]", err.Error())
+	}
+	return nil
 }

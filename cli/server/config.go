@@ -27,6 +27,7 @@ import (
 	"github.com/hyperledger/fabric-cop/cli/server/ldap"
 	"github.com/hyperledger/fabric-cop/idp"
 	"github.com/hyperledger/fabric-cop/lib/tls"
+	"github.com/hyperledger/fabric/core/crypto/bccsp"
 
 	_ "github.com/mattn/go-sqlite3" // Needed to support sqlite
 )
@@ -44,6 +45,8 @@ type Config struct {
 	KeyFile        string           `json:"ca_key"`
 	TLSConf        TLSConfig        `json:"tls,omitempty"`
 	TLSDisable     bool             `json:"tls_disable,omitempty"`
+	Bccsp          *BccspConfig     `json:"bccsp,omitempty"`
+	csp            bccsp.BCCSP
 }
 
 // UserReg defines the user registry properties
@@ -65,6 +68,11 @@ type User struct {
 	Type       string          `json:"type"`
 	Group      string          `json:"group"`
 	Attributes []idp.Attribute `json:"attrs,omitempty"`
+}
+
+// BccspConfig BCCSP configuration
+type BccspConfig struct {
+	Name string `json:"name"`
 }
 
 // Constructor for COP config
