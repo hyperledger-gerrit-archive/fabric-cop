@@ -29,7 +29,7 @@ import (
 // GetBatchRequest defines input to the GetBatch API
 type GetBatchRequest struct {
 	// Number of TCerts in the batch.
-	Count uint `json:"count"`
+	Count uint `json:"count,omitempty"`
 	// The attribute name and values that are to be inserted in the issued TCerts.
 	Attrs []Attribute `json:"attrs,omitempty"`
 	// EncryptAttrs denotes whether to encrypt attribute values or not.
@@ -41,13 +41,17 @@ type GetBatchRequest struct {
 	ValidityPeriod time.Duration `json:"validityPeriod,omitempty"`
 	// The pre-key to be used for key derivation.
 	PreKey string `json:"prekey"`
+	//Array of Public Keys is used when client generates keys locally and
+	//send corresponding public keys to used in batch of TCerts that are being
+	// signed by CoP
+	PublicKeys [][]byte `json:"publicKeys,omitempty"`
 }
 
 // GetBatchResponse is the response from the GetBatch API
 type GetBatchResponse struct {
 	ID     *big.Int  `json:"id"`
 	TS     time.Time `json:"ts"`
-	Key    []byte    `json:"key"`
+	Key    []byte    `json:"key,omitempty"`
 	TCerts []TCert   `json:"tcerts"`
 }
 

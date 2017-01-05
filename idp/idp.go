@@ -18,6 +18,7 @@ limitations under the License.
 package idp
 
 import (
+	"math/big"
 	"time"
 
 	"github.com/cloudflare/cfssl/csr"
@@ -213,12 +214,39 @@ type ImportSignerRequest struct {
 	Key []byte `json:"key,omitempty"`
 }
 
-// GetPrivateSignersRequest is input provided to get private signers
+// GetPrivateSignersRequest is input provided to get private signers.
+// This is used for TCert being generated out of ECert as well as TCert
+// generated for client provided Public Key.
 type GetPrivateSignersRequest struct {
-	Count          uint          `json:"count"`
+	Count          uint          `json:"count,omitempty"`
 	AttrNames      []string      `json:"attr_names,omitempty"`
 	EncryptAttrs   bool          `json:"encrypt_attrs,omitempty"`
 	ValidityPeriod time.Duration `json:"validity_period,omitempty"`
+	//SignatureBatch is array of signature over the KeySigPair Payload field
+	SignatureBatch []KeySigPair `json:"signature_batch,omitempty"`
+}
+
+// KeySigPair contains Public Key and Signature Element
+type KeySigPair struct {
+	//Payload is the payload that is being signed with each key
+	Payload   []byte    `json:"payload,omitempty"`
+	PublicKey []byte    `json:"public_key"`
+	Signature Signature `json:"signature"`
+}
+
+// Signature contains Elliptic Curve and RSA Signature Elements
+type Signature struct {
+	//HashAlgo is the algorithm used to calculate signature
+	//Possible values are SHA2_256 , SHA2_384 , SHA3_256 and SHA3_384
+	HashAlgo     string      `json:"hash_algo"`
+	ECSignature  ECSignature `json:"ecsignature,omitempty"`
+	RSASignature []byte      `json:"rsasignature,omitempty"`
+}
+
+// ECSignature contains Elliptic Curve Signature Elements
+type ECSignature struct {
+	R *big.Int `json:"r"`
+	S *big.Int `json:"s"`
 }
 
 // SignatureOpts are signature options
