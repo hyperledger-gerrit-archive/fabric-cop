@@ -21,11 +21,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"github.com/cloudflare/cfssl/cli"
 	"github.com/cloudflare/cfssl/log"
 	"github.com/hyperledger/fabric-cop/cli/server/ldap"
 	"github.com/hyperledger/fabric-cop/idp"
+	libcsp "github.com/hyperledger/fabric-cop/lib/csp"
 	"github.com/hyperledger/fabric-cop/lib/tls"
 
 	_ "github.com/mattn/go-sqlite3" // Needed to support sqlite
@@ -44,6 +46,7 @@ type Config struct {
 	KeyFile        string           `json:"ca_key"`
 	TLSConf        TLSConfig        `json:"tls,omitempty"`
 	TLSDisable     bool             `json:"tls_disable,omitempty"`
+	CSP            *libcsp.Config   `json:"csp,omitempty"`
 }
 
 // UserReg defines the user registry properties
@@ -115,6 +118,17 @@ func configInit(cfg *cli.Config) {
 			cfg.MutualTLSCAFile = CFG.TLSConf.MutualTLSCAFile
 		}
 
+	}
+
+	if CFG.DataSource == "" {
+		msg := "No database specified, a database is needed to run COP server. Using default - Type: SQLite, Name: cop.db"
+		log.Info(msg)
+		CFG.DBdriver = sqlite
+		CFG.DataSource = "cop.db"
+	}
+
+	if CFG.DBdriver == sqlite {
+		CFG.DataSource = filepath.Join(home, CFG.DataSource)
 	}
 
 	dbg := os.Getenv("COP_DEBUG")

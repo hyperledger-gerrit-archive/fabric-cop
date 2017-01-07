@@ -49,6 +49,9 @@ import (
 	"github.com/cloudflare/cfssl/signer/universal"
 	"github.com/cloudflare/cfssl/ubiquity"
 	"github.com/hyperledger/fabric-cop/cli/server/spi"
+	libcsp "github.com/hyperledger/fabric-cop/lib/csp"
+	"github.com/hyperledger/fabric-cop/util"
+	"github.com/hyperledger/fabric/core/crypto/bccsp"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -86,6 +89,7 @@ var (
 	configFile     string
 	userRegistry   spi.UserRegistry
 	certDBAccessor *CertDBAccessor
+	csp            bccsp.BCCSP
 )
 
 var (
@@ -114,26 +118,16 @@ type Server struct {
 // CreateHome will create a home directory if it does not exist
 func (s *Server) CreateHome() (string, error) {
 	log.Debug("CreateHome")
-	home := os.Getenv("COP_HOME")
-	if home == "" {
-		home = os.Getenv("HOME")
-		if home != "" {
-			home = home + "/.cop"
-		}
-	}
-	if home == "" {
-		home = "/var/hyperledger/fabric/dev/.fabric-cop"
-	}
-	if _, err := os.Stat(home); err != nil {
+	homeDir := util.GetDefaultHomeDir()
+	if _, err := os.Stat(homeDir); err != nil {
 		if os.IsNotExist(err) {
-			err := os.MkdirAll(home, 0755)
+			err := os.MkdirAll(homeDir, 0755)
 			if err != nil {
 				return "", err
 			}
 		}
 	}
-
-	return home, nil
+	return homeDir, nil
 }
 
 // BootstrapDB loads the database based on config file
@@ -153,28 +147,25 @@ func startMain(args []string, c cli.Config) error {
 	log.Debug("server.startMain")
 
 	s := new(Server)
-	home, err := s.CreateHome()
+	homeDir, err := s.CreateHome()
 	if err != nil {
 		return err
 	}
+	home = homeDir
+
 	configInit(&c)
-	cfg := CFG
 
-	if cfg.DataSource == "" {
-		msg := "No database specified, a database is needed to run COP server. Using default - Type: SQLite, Name: cop.db"
-		log.Info(msg)
-		cfg.DBdriver = sqlite
-		cfg.DataSource = "cop.db"
-	}
-
-	if cfg.DBdriver == sqlite {
-		cfg.DataSource = filepath.Join(home, cfg.DataSource)
+	// Initialize the Crypto Service Provider
+	csp, err = libcsp.Get(CFG.CSP)
+	if err != nil {
+		log.Errorf("Failed to get the crypto service provider: %s", err)
+		return err
 	}
 
 	// Initialize the user registry
-	err = InitUserRegistry(cfg)
+	err = InitUserRegistry(CFG)
 	if err != nil {
-		log.Errorf("Failed to initialize user registry [error: %s]", err)
+		log.Errorf("Failed to initialize user registry: %s", err)
 		return err
 	}
 
