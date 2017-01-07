@@ -26,6 +26,7 @@ import (
 	cerr "github.com/cloudflare/cfssl/errors"
 	"github.com/cloudflare/cfssl/log"
 	"github.com/hyperledger/fabric-cop/api"
+	libcsp "github.com/hyperledger/fabric-cop/lib/csp"
 	"github.com/hyperledger/fabric-cop/lib/tcert"
 	"github.com/hyperledger/fabric-cop/util"
 )
@@ -47,16 +48,12 @@ func NewTCertHandler() (h http.Handler, err error) {
 
 func initTCertHandler() (h http.Handler, err error) {
 	log.Debug("Initializing TCert handler")
-	csp, err := util.GetBCCSP(nil)
-	if err != nil {
-		return nil, err
-	}
 	mgr, err := tcert.LoadMgr(CFG.KeyFile, CFG.CAFile)
 	if err != nil {
 		return nil, err
 	}
-	// TODO: The root prekey must be stored persistently in DB and retrieved here if not found
-	rootKey, err := util.GenRootKey(csp)
+	// FIXME: The root prekey must be stored persistently in DB and retrieved here if not found
+	rootKey, err := libcsp.GenRootKey(csp)
 	if err != nil {
 		return nil, err
 	}
