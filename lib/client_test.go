@@ -277,4 +277,5 @@ func runServer() {
 func TestLast(t *testing.T) {
 	// Cleanup
 	os.RemoveAll(dir)
+	os.RemoveAll("../testdata/cop.db")
 }
