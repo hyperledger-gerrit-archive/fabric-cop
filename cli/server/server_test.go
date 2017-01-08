@@ -25,7 +25,6 @@ import (
 	"testing"
 	"time"
 
-	factory "github.com/hyperledger/fabric-cop"
 	"github.com/hyperledger/fabric-cop/cli/server/dbutil"
 	"github.com/hyperledger/fabric-cop/cli/server/ldap"
 	"github.com/hyperledger/fabric-cop/idp"
@@ -112,7 +111,8 @@ func TestRegisterUser(t *testing.T) {
 		Group: "bank_a",
 	}
 
-	id, _ := factory.NewIdentity()
+	//id, _ := factory.NewIdentity()
+	id := new(lib.Identity)
 	path := filepath.Join(dir, "client.json")
 	identity, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -252,7 +252,8 @@ func TestMaxEnrollment(t *testing.T) {
 		Group: "bank_a",
 	}
 
-	id, _ := factory.NewIdentity()
+	//id, _ := factory.NewIdentity()
+	id := new(lib.Identity)
 	path := filepath.Join(dir, "client.json")
 	identity, err := ioutil.ReadFile(path)
 	if err != nil {
