@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	CFGFile         = "testconfig2.json"
+	CFGFile         = "testconfig.json"
 	ClientTLSConfig = "cop_client.json"
 )
 
