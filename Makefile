@@ -46,10 +46,10 @@ PKGNAME = github.com/hyperledger/$(PROJECT_NAME)
 SAMPLECONFIG = $(shell git ls-files images/cop/config)
 
 DOCKER_ORG = hyperledger
-IMAGES = $(PROJECT_NAME) $(PROJECT_NAME)-runtime
+IMAGES = $(PROJECT_NAME)
+BUSYBOX_IMAGE=$(DOCKER_ORG)/fabric-busybox:$(ARCH)-1.25.1-1
 
-image-path-map.fabric-cop         := cop
-image-path-map.fabric-cop-runtime := runtime
+image-path-map.fabric-cop := cop
 
 include docker-env.mk
 
@@ -98,12 +98,9 @@ build/docker/busybox:
 		hyperledger/fabric-baseimage:$(BASE_DOCKER_TAG) \
 		make -f busybox/Makefile install BINDIR=$(@D)
 
-build/image/$(PROJECT_NAME)/$(DUMMY): build/image/$(PROJECT_NAME)-runtime/$(DUMMY)
-
 # payload definitions
 build/image/$(PROJECT_NAME)/payload:	build/docker/bin/cop \
 					build/sampleconfig.tar.bz2
-build/image/$(PROJECT_NAME)-runtime/payload:	build/docker/busybox
 
 build/image/%/payload:
 	mkdir -p $@
@@ -116,6 +113,8 @@ build/image/%/$(DUMMY): Makefile build/image/%/payload
 	@cat images/$(image-path-map.$(TARGET))/Dockerfile.in \
 		| sed -e 's/_BASE_TAG_/$(BASE_DOCKER_TAG)/g' \
 		| sed -e 's/_TAG_/$(DOCKER_TAG)/g' \
+		| sed -e 's/_ARCH_/$(ARCH)/g' \
+		| sed -e 's|_BUSYBOX_IMAGE_|$(BUSYBOX_IMAGE)|g' \
 		> $(@D)/Dockerfile
 	$(DBUILD) -t $(DOCKER_NAME) $(@D)
 	docker tag $(DOCKER_NAME) $(DOCKER_NAME):$(DOCKER_TAG)
