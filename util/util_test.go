@@ -19,6 +19,7 @@ package util
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -136,9 +137,33 @@ func TestRemoveQuotesNone(t *testing.T) {
 	}
 }
 
+func TestCreateHome(t *testing.T) {
+	t.Log("Test Creating Home Directory")
+	os.Unsetenv("COP_HOME")
+	tempDir, err := ioutil.TempDir("", "test")
+	if err != nil {
+		t.Errorf("Failed to create temp directory [error: %s]", err)
+	}
+	os.Setenv("HOME", tempDir)
+
+	_, err = CreateHome()
+	if err != nil {
+		t.Errorf("Failed to create home directory, error: %s", err)
+	}
+
+	dir := filepath.Join(tempDir, ".fabric-cop")
+
+	if _, err = os.Stat(dir); err != nil {
+		if os.IsNotExist(err) {
+			t.Error("Failed to create home directory")
+		}
+	}
+
+}
+
 func TestGetDefaultHomeDir(t *testing.T) {
-	os.Setenv("COP_HOME", "")
-	os.Setenv("HOME", "")
+	os.Unsetenv("COP_HOME")
+	os.Unsetenv("HOME")
 	home := GetDefaultHomeDir()
 	if home != "/var/hyperledger/fabric/dev/.fabric-cop" {
 		t.Errorf("Incorrect default home (%s) path retrieved", home)
@@ -146,7 +171,7 @@ func TestGetDefaultHomeDir(t *testing.T) {
 
 	os.Setenv("HOME", "/tmp")
 	home = GetDefaultHomeDir()
-	if home != "/tmp/.cop" {
+	if home != "/tmp/.fabric-cop" {
 		t.Errorf("Incorrect $HOME (%s) path retrieved", home)
 	}
 
@@ -213,5 +238,16 @@ func TestFileExists(t *testing.T) {
 	exists := FileExists(name)
 	if exists == false {
 		t.Error("File does not exist")
+	}
+}
+
+func TestAbs(t *testing.T) {
+	configDir := "../testdata"
+	file := "cop_client.json"
+	path := Abs(file, configDir)
+
+	isAbs := filepath.IsAbs(path)
+	if !isAbs {
+		t.Error("Failed to get absolute path")
 	}
 }

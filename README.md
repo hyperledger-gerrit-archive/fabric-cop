@@ -239,6 +239,29 @@ Auhentication is added by COP since CFSSL does not perform authentication.  A st
 basic authentication header is required for the enroll request.  All other requests
 to the COP server will require a JWT-like token, but this work is not yet complete.
 
+### Create Client Configuration File
+
+The client requires a configuration file to enable TLS and successfully connect
+to server. A sample client configuration file can be found at
+`../testdata/cop_client.json`.
+
+An environment variable needs to be defined that will reference this config file.
+
+```
+export COP_CLIENT_CONFIG = ../testdata/cop_client.json
+```
+
+The table below defines all the properties that can be set in the config file.
+
+| Property    |                     Description                              |
+|-------------|--------------------------------------------------------------|
+|serverURL    | URL of the server                                            |
+|homeDir      | COP client home directory                                    |
+|fileName     | Name of ID file that contains user's certificate that gets loaded by client |
+|ca_certfiles | File path to root certificate of which server certificate is signed by    |
+|keyfile      | File path to client TLS key on file system                   |
+|certfile     | File path to client TLS certificate on file system           |
+
 ### Enroll the admin client
 
 See the `$COP/testdata/cop.json` file and note the "admin" user with a password of "adminpw".
@@ -246,7 +269,7 @@ The following command gets an ecert for the admin user.
 
 ```
 # cd $COP/bin
-# ./cop client enroll admin adminpw http://localhost:8888
+# ./cop client enroll admin adminpw
 ```
 
 Note that this stores the enrollment material in the `$COP_HOME/client.json` file.
@@ -260,7 +283,7 @@ key is used to authenticate to the COP server.
 
 ```
 # cd $COP/bin
-# ./cop client reenroll ../testdata/csr.json http://localhost:8888
+# ./cop client reenroll ../testdata/csr.json
 ```
 
 Note that this updates the enrollment material in the `$COP_HOME/client.json` file.
@@ -298,7 +321,7 @@ The following command will register the user.
 
 ```
 # cd $COP/bin
-# ./cop client register ../testdata/registerrequest.json http://localhost:8888
+# ./cop client register ../testdata/registerrequest.json
 ```
 
 ### LDAP
