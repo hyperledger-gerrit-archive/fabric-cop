@@ -25,9 +25,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hyperledger/fabric-cop/api"
 	"github.com/hyperledger/fabric-cop/cli/server/dbutil"
 	"github.com/hyperledger/fabric-cop/cli/server/ldap"
-	"github.com/hyperledger/fabric-cop/idp"
 	"github.com/hyperledger/fabric-cop/lib"
 )
 
@@ -89,7 +89,7 @@ func TestRegisterUser(t *testing.T) {
 		return
 	}
 
-	enrollReq := &idp.EnrollmentRequest{
+	enrollReq := &api.EnrollmentRequest{
 		Name:   "admin",
 		Secret: "adminpw",
 	}
@@ -106,15 +106,13 @@ func TestRegisterUser(t *testing.T) {
 		return
 	}
 
-	regReq := &idp.RegistrationRequest{
+	regReq := &api.RegistrationRequest{
 		Name:  "TestUser1",
 		Type:  "Client",
 		Group: "bank_a",
 	}
 
-	regReq.Registrar = id
-
-	_, err = c.Register(regReq)
+	_, err = id.Register(regReq)
 	if err != nil {
 		t.Error(err)
 	}
@@ -145,7 +143,7 @@ func TestEnrollUser(t *testing.T) {
 		return
 	}
 
-	req := &idp.EnrollmentRequest{
+	req := &api.EnrollmentRequest{
 		Name:   "testUser",
 		Secret: "user1",
 	}
@@ -156,11 +154,9 @@ func TestEnrollUser(t *testing.T) {
 		return
 	}
 
-	reenrollReq := &idp.ReenrollmentRequest{
-		ID: id,
-	}
+	reenrollReq := &api.ReenrollmentRequest{}
 
-	_, err = c.Reenroll(reenrollReq)
+	_, err = id.Reenroll(reenrollReq)
 	if err != nil {
 		t.Error("reenroll of user 'testUser' failed")
 		return
@@ -179,7 +175,7 @@ func TestRevoke(t *testing.T) {
 		return
 	}
 
-	req := &idp.EnrollmentRequest{
+	req := &api.EnrollmentRequest{
 		Name:   "admin2",
 		Secret: "adminpw2",
 	}
@@ -190,17 +186,17 @@ func TestRevoke(t *testing.T) {
 		return
 	}
 
-	err = id.Revoke(&idp.RevocationRequest{})
+	err = id.Revoke(&api.RevocationRequest{})
 	if err == nil {
 		t.Error("Revoke with no args should have failed but did not")
 	}
 
-	err = id.Revoke(&idp.RevocationRequest{Serial: "foo", AKI: "bar"})
+	err = id.Revoke(&api.RevocationRequest{Serial: "foo", AKI: "bar"})
 	if err == nil {
 		t.Error("Revoke with bogus serial and AKI should have failed but did not")
 	}
 
-	err = id.Revoke(&idp.RevocationRequest{Name: "foo"})
+	err = id.Revoke(&api.RevocationRequest{Name: "foo"})
 	if err == nil {
 		t.Error("Revoke with bogus name should have failed but did not")
 	}
@@ -226,9 +222,7 @@ func TestGetTCerts(t *testing.T) {
 		return
 	}
 	// Getting TCerts
-	_, err = id.GetPrivateSigners(&idp.GetPrivateSignersRequest{
-		Count: 1,
-	})
+	_, err = id.GetTCertBatch(&api.GetTCertBatchRequest{Count: 1})
 	if err != nil {
 		t.Errorf("GetPrivateSigners failed: %s", err)
 	}
@@ -248,14 +242,13 @@ func TestMaxEnrollment(t *testing.T) {
 
 	CFG.UsrReg.MaxEnrollments = 2
 
-	regReq := &idp.RegistrationRequest{
-		Name:      "MaxTestUser",
-		Type:      "Client",
-		Group:     "bank_a",
-		Registrar: id,
+	regReq := &api.RegistrationRequest{
+		Name:  "MaxTestUser",
+		Type:  "Client",
+		Group: "bank_a",
 	}
 
-	resp, err := c.Register(regReq)
+	resp, err := id.Register(regReq)
 	if err != nil {
 		t.Error(err)
 	}
@@ -265,20 +258,21 @@ func TestMaxEnrollment(t *testing.T) {
 		t.Fatalf("Failed decoding secret: %s", err)
 	}
 
-	enrollReq := &idp.EnrollmentRequest{
+	secret := string(secretBytes)
+	enrollReq := &api.EnrollmentRequest{
 		Name:   "MaxTestUser",
-		Secret: string(secretBytes),
+		Secret: secret,
 	}
 
 	_, err = c.Enroll(enrollReq)
 	if err != nil {
-		t.Error("Enroll of user 'MaxTestUser' failed")
+		t.Errorf("Enroll of user 'MaxTestUser' failed with secret '%s'", secret)
 		return
 	}
 
 	_, err = c.Enroll(enrollReq)
 	if err != nil {
-		t.Error("Enroll of user 'MaxTestUser' failed")
+		t.Error("Reenroll of user 'MaxTestUser' failed")
 		return
 	}
 
@@ -300,7 +294,7 @@ func testUnregisteredUser(t *testing.T) {
 	copServer := `{"serverURL":"https://localhost:8888"}`
 	c, _ := lib.NewClient(copServer)
 
-	req := &idp.EnrollmentRequest{
+	req := &api.EnrollmentRequest{
 		Name:   "Unregistered",
 		Secret: "test",
 	}
@@ -316,7 +310,7 @@ func testIncorrectToken(t *testing.T) {
 	copServer := `{"serverURL":"https://localhost:8888"}`
 	c, _ := lib.NewClient(copServer)
 
-	req := &idp.EnrollmentRequest{
+	req := &api.EnrollmentRequest{
 		Name:   "notadmin",
 		Secret: "pass1",
 	}
@@ -332,7 +326,7 @@ func testEnrollingUser(t *testing.T) {
 	copServer := `{"serverURL":"https://localhost:8888"}`
 	c, _ := lib.NewClient(copServer)
 
-	req := &idp.EnrollmentRequest{
+	req := &api.EnrollmentRequest{
 		Name:   "testUser2",
 		Secret: "user2",
 	}
@@ -384,7 +378,7 @@ func TestExpiration(t *testing.T) {
 
 	// Enroll this user using the "expiry" profile which is configured
 	// to expire after 1 second
-	regReq := &idp.EnrollmentRequest{
+	regReq := &api.EnrollmentRequest{
 		Name:    "expiryUser",
 		Secret:  "expirypw",
 		Profile: "expiry",

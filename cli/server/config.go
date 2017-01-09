@@ -24,8 +24,8 @@ import (
 
 	"github.com/cloudflare/cfssl/cli"
 	"github.com/cloudflare/cfssl/log"
+	"github.com/hyperledger/fabric-cop/api"
 	"github.com/hyperledger/fabric-cop/cli/server/ldap"
-	"github.com/hyperledger/fabric-cop/idp"
 	"github.com/hyperledger/fabric-cop/lib/tls"
 
 	_ "github.com/mattn/go-sqlite3" // Needed to support sqlite
@@ -64,7 +64,7 @@ type User struct {
 	Pass       string          `json:"pass"` // enrollment secret
 	Type       string          `json:"type"`
 	Group      string          `json:"group"`
-	Attributes []idp.Attribute `json:"attrs,omitempty"`
+	Attributes []api.Attribute `json:"attrs,omitempty"`
 }
 
 // Constructor for COP config
