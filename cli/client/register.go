@@ -20,8 +20,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/cloudflare/cfssl/cli"
+	"github.com/cloudflare/cfssl/log"
 	cop "github.com/hyperledger/fabric-cop/api"
 	"github.com/hyperledger/fabric-cop/idp"
 
@@ -44,7 +46,7 @@ var registerFlags = []string{}
 
 func registerMain(args []string, c cli.Config) error {
 
-	regFile, args, err := cli.PopFirstArgument(args)
+	regFile, _, err := cli.PopFirstArgument(args)
 	if err != nil {
 		return err
 	}
@@ -60,12 +62,13 @@ func registerMain(args []string, c cli.Config) error {
 		return err
 	}
 
-	copServer, _, err := cli.PopFirstArgument(args)
-	if err != nil {
-		return err
+	configFile := os.Getenv("COP_CONFIG_FILE")
+	if configFile == "" {
+		return cop.NewError(cop.IOError, "COP_CONFIG_FILE environment variable not set. COP Client configuration file required")
 	}
+	log.Infof("COP Client Configuration File: %s", configFile)
 
-	client, err := NewClient(copServer)
+	client, err := NewClient(configFile)
 	if err != nil {
 		return err
 	}

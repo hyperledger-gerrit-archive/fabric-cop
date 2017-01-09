@@ -19,8 +19,10 @@ package cop
 import "testing"
 
 // TestNewClient tests constructing a client
+const clientConfig = "./testdata/cop_client.json"
+
 func TestNewClient(t *testing.T) {
-	_, err := NewClient(`{"serverAddr":"http://127.0.0.1:8888"}`)
+	_, err := NewClient(clientConfig)
 	if err != nil {
 		t.Errorf("Failed to create a client: %s", err)
 	}

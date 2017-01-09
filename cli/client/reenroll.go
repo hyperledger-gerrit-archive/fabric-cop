@@ -18,9 +18,11 @@ package client
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/cloudflare/cfssl/cli"
 	"github.com/cloudflare/cfssl/log"
+	cop "github.com/hyperledger/fabric-cop/api"
 
 	"github.com/hyperledger/fabric-cop/idp"
 )
@@ -42,12 +44,13 @@ var reenrollFlags = []string{}
 func reenrollMain(args []string, c cli.Config) error {
 	log.Debug("Entering cli/client/reenrollMain")
 
-	copServer, args, err := cli.PopFirstArgument(args)
-	if err != nil {
-		return err
+	configFile := os.Getenv("COP_CONFIG_FILE")
+	if configFile == "" {
+		return cop.NewError(cop.IOError, "COP_CONFIG_FILE environment variable not set. COP Client configuration file required")
 	}
+	log.Infof("COP Client Configuration File: %s", configFile)
 
-	client, err := NewClient(copServer)
+	client, err := NewClient(configFile)
 	if err != nil {
 		return err
 	}
