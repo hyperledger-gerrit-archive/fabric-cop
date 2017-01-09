@@ -18,7 +18,8 @@ package client
 
 import "github.com/hyperledger/fabric-cop/lib"
 
-// NewClient returns a client given a url
-func NewClient(url string) (*lib.Client, error) {
-	return lib.NewClient(`{"serverURL":"` + url + `"}`)
+// NewClient returns a client given a configuration file
+func NewClient(configFile string) (*lib.Client, error) {
+	c, _ := lib.NewClient(configFile)
+	return c, nil
 }

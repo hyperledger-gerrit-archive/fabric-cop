@@ -49,17 +49,44 @@ const (
 )
 
 // NewClient is the constructor for the COP client API
-func NewClient(config string) (*Client, error) {
+func NewClient(configFile string) (*Client, error) {
 	c := new(Client)
 	// Set defaults
-	c.ServerURL = "http://localhost:8888"
-	c.HomeDir = util.GetDefaultHomeDir()
-	if config != "" {
+	if configFile != "" {
+		c.ConfigFile = configFile
+		var config []byte
+		var err error
+		if configFile != "" {
+			config, err = ioutil.ReadFile(configFile)
+			if err != nil {
+			}
+		}
 		// Override any defaults
-		err := util.Unmarshal([]byte(config), c, "NewClient")
+		err = util.Unmarshal([]byte(config), c, "NewClient")
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	if c.ServerURL == "" {
+		c.ServerURL = "http://localhost:8888"
+	}
+
+	if c.HomeDir == "" {
+		c.HomeDir = util.GetDefaultHomeDir()
+	}
+
+	if _, err := os.Stat(c.HomeDir); err != nil {
+		if os.IsNotExist(err) {
+			_, err := util.CreateHome()
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if c.MyIDFile == "" {
+		c.MyIDFile = "client.json"
 	}
 	return c, nil
 }
@@ -70,6 +97,10 @@ type Client struct {
 	ServerURL string `json:"serverURL,omitempty"`
 	// HomeDir is the home directory
 	HomeDir string `json:"homeDir,omitempty"`
+	// MyIDFIle is the name of ID file which gets loaded by LoadMyIdentity
+	MyIDFile string `json:"fileName,omitempty"`
+	// ConfigFile is the location of the client configuration file
+	ConfigFile string
 }
 
 // Capabilities returns the capabilities COP
@@ -375,7 +406,7 @@ func (c *Client) NewPost(endpoint string, reqBody []byte) (*http.Request, error)
 func (c *Client) SendPost(req *http.Request) (respBody []byte, err error) {
 	log.Debugf("Sending request\n%s", util.HTTPRequestToString(req))
 
-	configFile, err := c.getClientConfig(c.HomeDir)
+	configFile, err := c.getClientConfig(c.ConfigFile)
 	if err != nil {
 		log.Errorf("Failed to load client configuration file [error: %s]", err)
 	}
@@ -386,6 +417,9 @@ func (c *Client) SendPost(req *http.Request) (respBody []byte, err error) {
 	if err != nil {
 		log.Errorf("Error: %s", err)
 	}
+
+	configDir := filepath.Dir(c.ConfigFile)
+	tls.AbsTLSClient(cfg, configDir)
 
 	tlsConfig, err := tls.GetClientTLSConfig(cfg)
 	if err != nil {
@@ -441,9 +475,8 @@ func (c *Client) getURL(endpoint string) (string, cop.Error) {
 }
 
 func (c *Client) getClientConfig(path string) ([]byte, error) {
-	log.Debug("Retrieving client config")
-	copClient := filepath.Join(path, clientConfigFile)
-	fileBytes, err := ioutil.ReadFile(copClient)
+	log.Debugf("Retrieving client config from %s", path)
+	fileBytes, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}

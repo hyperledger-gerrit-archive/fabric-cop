@@ -27,12 +27,11 @@ import (
 	"github.com/cloudflare/cfssl/csr"
 	"github.com/cloudflare/cfssl/initca"
 	"github.com/cloudflare/cfssl/log"
+	"github.com/hyperledger/fabric-cop/util"
 )
 
 func TestInitCA(t *testing.T) {
-
-	s := new(Server)
-	COPHome, err := s.CreateHome()
+	COPHome, err := util.CreateHome()
 	if err != nil {
 		log.Fatalf("Failed to get $COP_HOME directory.")
 	}

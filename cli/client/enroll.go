@@ -18,10 +18,12 @@ package client
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/cloudflare/cfssl/cli"
 	"github.com/cloudflare/cfssl/log"
 
+	cop "github.com/hyperledger/fabric-cop/api"
 	"github.com/hyperledger/fabric-cop/idp"
 )
 
@@ -55,17 +57,18 @@ func enrollMain(args []string, c cli.Config) error {
 		return err
 	}
 
-	copServer, args, err := cli.PopFirstArgument(args)
-	if err != nil {
-		return err
+	configFile := os.Getenv("COP_CONFIG_FILE")
+	if configFile == "" {
+		return cop.NewError(cop.IOError, "COP_CONFIG_FILE environment variable not set. COP Client configuration file required")
 	}
+	log.Infof("COP Client Configuration File: %s", configFile)
 
 	req := &idp.EnrollmentRequest{
 		Name:   id,
 		Secret: secret,
 	}
 
-	client, err := NewClient(copServer)
+	client, err := NewClient(configFile)
 	if err != nil {
 		return err
 	}

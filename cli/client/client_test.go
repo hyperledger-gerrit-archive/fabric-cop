@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -33,26 +32,24 @@ var serverExitCode = 0
 var dir string
 
 const (
-	ClientTLSConfig string = "cop_client.json"
+	clientConfig string = "../../testdata/cop_client.json"
 )
 
 // TestNewClient tests constructing a client
 func TestNewClient(t *testing.T) {
-	_, err := NewClient("https://127.0.0.1:8888")
+	_, err := NewClient(clientConfig)
 	if err != nil {
 		t.Errorf("Failed to create a client: %s", err)
 	}
 }
 
 func TestEnrollCLI(t *testing.T) {
+	os.Setenv("COP_CONFIG_FILE", clientConfig)
 	startServer()
-
-	clientConfig := filepath.Join(dir, ClientTLSConfig)
-	os.Link("../../testdata/cop_client2.json", clientConfig)
 
 	c := new(cli.Config)
 
-	args := []string{"admin", "adminpw", "https://localhost:8888"}
+	args := []string{"admin", "adminpw"}
 
 	err := enrollMain(args, *c)
 	if err != nil {
@@ -64,7 +61,7 @@ func TestEnrollCLI(t *testing.T) {
 func TestReenrollCLI(t *testing.T) {
 	c := new(cli.Config)
 
-	args := []string{"https://localhost:8888"}
+	args := []string{}
 
 	err := reenrollMain(args, *c)
 	if err != nil {
@@ -77,7 +74,7 @@ func TestRegister(t *testing.T) {
 
 	c := new(cli.Config)
 
-	args := []string{"../../testdata/registerrequest.json", "https://localhost:8888"}
+	args := []string{"../../testdata/registerrequest.json"}
 
 	err := registerMain(args, *c)
 	if err != nil {
@@ -101,7 +98,7 @@ func TestRegisterNotEnoughArgs(t *testing.T) {
 func TestRegisterNoJSON(t *testing.T) {
 	c := new(cli.Config)
 
-	args := []string{"", "admin", "https://localhost:8888"}
+	args := []string{"", "admin"}
 
 	err := registerMain(args, *c)
 	if err == nil {
@@ -114,7 +111,7 @@ func TestRegisterMissingRegistrar(t *testing.T) {
 	c := new(cli.Config)
 
 	// os.Setenv("COP_HOME", "/tmp")
-	args := []string{"", "", "https://localhost:8888"}
+	args := []string{"", ""}
 
 	err := registerMain(args, *c)
 	if err == nil {
@@ -127,7 +124,7 @@ func TestRevoke(t *testing.T) {
 
 	c := new(cli.Config)
 
-	args := []string{"https://localhost:8888", "admin"}
+	args := []string{"admin"}
 
 	err := revokeMain(args, *c)
 	if err != nil {
@@ -153,7 +150,7 @@ func TestEnrollCLIWithCSR(t *testing.T) {
 
 	c := new(cli.Config)
 
-	args := []string{"notadmin", "pass", "https://localhost:8888", "../../testdata/csr.json"}
+	args := []string{"notadmin", "pass", "../../testdata/csr.json"}
 
 	err := enrollMain(args, *c)
 	if err != nil {
@@ -166,7 +163,7 @@ func TestReenrollCLIWithCSR(t *testing.T) {
 
 	c := new(cli.Config)
 
-	args := []string{"https://localhost:8888", "../../testdata/csr.json"}
+	args := []string{"../../testdata/csr.json"}
 
 	err := reenrollMain(args, *c)
 	if err != nil {
@@ -178,7 +175,7 @@ func TestRevokeNoArg(t *testing.T) {
 
 	c := new(cli.Config)
 
-	args := []string{"https://localhost:8888"}
+	args := []string{}
 
 	err := revokeMain(args, *c)
 	if err == nil {
@@ -190,7 +187,7 @@ func TestRevokeNotAdmin(t *testing.T) {
 
 	c := new(cli.Config)
 
-	args := []string{"https://localhost:8888", "admin"}
+	args := []string{"admin"}
 
 	err := revokeMain(args, *c)
 	if err == nil {

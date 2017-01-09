@@ -22,7 +22,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -32,7 +31,7 @@ import (
 )
 
 const (
-	ClientTLSConfig string = "cop_client.json"
+	clientConfig string = "../testdata/cop_client.json"
 )
 
 var serverStarted bool
@@ -41,9 +40,6 @@ var dir string
 
 func TestAllClient(t *testing.T) {
 	startServer()
-
-	clientConfig := filepath.Join(dir, ClientTLSConfig)
-	os.Link("../testdata/cop_client.json", clientConfig)
 
 	c := getClient()
 
@@ -222,8 +218,7 @@ func TestSendBadPost(t *testing.T) {
 }
 
 func getClient() *Client {
-	copServer := `{"serverURL":"https://localhost:8888"}`
-	c, err := NewClient(copServer)
+	c, err := NewClient(clientConfig)
 	if err != nil {
 		log.Errorf("getClient failed: %s", err)
 	}

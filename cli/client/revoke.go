@@ -18,8 +18,11 @@ package client
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/cloudflare/cfssl/cli"
+	"github.com/cloudflare/cfssl/log"
+	cop "github.com/hyperledger/fabric-cop/api"
 	"github.com/hyperledger/fabric-cop/idp"
 )
 
@@ -40,11 +43,7 @@ Flags:
 var revokeFlags = []string{"aki", "serial", "reason"}
 
 func revokeMain(args []string, c cli.Config) error {
-
-	copServer, args, err := cli.PopFirstArgument(args)
-	if err != nil {
-		return err
-	}
+	var err error
 
 	var enrollmentID string
 	if len(args) > 0 {
@@ -54,7 +53,13 @@ func revokeMain(args []string, c cli.Config) error {
 		}
 	}
 
-	client, err := NewClient(copServer)
+	configFile := os.Getenv("COP_CONFIG_FILE")
+	if configFile == "" {
+		return cop.NewError(cop.IOError, "COP_CONFIG_FILE environment variable not set. COP Client configuration file required")
+	}
+	log.Infof("COP Client Configuration File: %s", configFile)
+
+	client, err := NewClient(configFile)
 	if err != nil {
 		return err
 	}

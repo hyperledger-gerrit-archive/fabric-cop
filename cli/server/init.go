@@ -25,6 +25,7 @@ import (
 	"github.com/cloudflare/cfssl/csr"
 	"github.com/cloudflare/cfssl/initca"
 	"github.com/cloudflare/cfssl/log"
+	"github.com/hyperledger/fabric-cop/util"
 	"github.com/hyperledger/fabric/core/crypto/bccsp/factory"
 )
 
@@ -73,8 +74,7 @@ func initMain(args []string, c cli.Config) (err error) {
 		return errors.New(err.Error())
 	}
 
-	s := new(Server)
-	COPHome, err := s.CreateHome()
+	COPHome, err := util.CreateHome()
 	if err != nil {
 		return errors.New(err.Error())
 	}
