@@ -16,9 +16,35 @@ limitations under the License.
 
 package client
 
-import "github.com/hyperledger/fabric-cop/lib"
+import (
+	"os"
+	"path"
 
-// NewClient returns a client given a url
-func NewClient(url string) (*lib.Client, error) {
-	return lib.NewClient(`{"serverURL":"` + url + `"}`)
+	"github.com/cloudflare/cfssl/log"
+	"github.com/hyperledger/fabric-cop/lib"
+	"github.com/hyperledger/fabric-cop/util"
+)
+
+// LoadClient loads client configuration file
+func loadClient(loadIdentity bool) (*lib.Client, *lib.Identity, error) {
+	configFile := os.Getenv("COP_CONFIG_FILE")
+	if configFile == "" {
+		configFile = path.Join(util.GetDefaultHomeDir(), "cop_client.json")
+	}
+	log.Infof("COP Client Configuration File: %s", configFile)
+
+	client, err := lib.NewClient(configFile)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if loadIdentity {
+		id, err2 := client.LoadMyIdentity()
+		if err != nil {
+			return nil, nil, err2
+		}
+		return client, id, nil
+	}
+
+	return client, nil, err
 }

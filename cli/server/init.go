@@ -18,13 +18,14 @@ package server
 
 import (
 	"encoding/json"
-	"errors"
 	"io/ioutil"
+	"path"
 
 	"github.com/cloudflare/cfssl/cli"
 	"github.com/cloudflare/cfssl/csr"
 	"github.com/cloudflare/cfssl/initca"
 	"github.com/cloudflare/cfssl/log"
+	"github.com/hyperledger/fabric-cop/util"
 	"github.com/hyperledger/fabric/core/crypto/bccsp/factory"
 )
 
@@ -42,12 +43,12 @@ var initFlags = []string{"remote", "u"}
 func initMain(args []string, c cli.Config) (err error) {
 	csrFile, _, err := cli.PopFirstArgument(args)
 	if err != nil {
-		return errors.New(err.Error())
+		return err
 	}
 
 	csrFileBytes, err := cli.ReadStdin(csrFile)
 	if err != nil {
-		return errors.New(err.Error())
+		return err
 	}
 
 	req := csr.CertificateRequest{
@@ -55,12 +56,12 @@ func initMain(args []string, c cli.Config) (err error) {
 	}
 	err = json.Unmarshal(csrFileBytes, &req)
 	if err != nil {
-		return errors.New(err.Error())
+		return err
 	}
 
 	bccsp, err := factory.GetDefault()
 	if err != nil {
-		return errors.New(err.Error())
+		return err
 	}
 	_ = bccsp
 	//FIXME: replace the key generation and storage with BCCSP
@@ -70,19 +71,18 @@ func initMain(args []string, c cli.Config) (err error) {
 	var key, cert []byte
 	cert, _, key, err = initca.New(&req)
 	if err != nil {
-		return errors.New(err.Error())
+		return err
 	}
 
-	s := new(Server)
-	COPHome, err := s.CreateHome()
+	COPHome, err := util.CreateHome()
 	if err != nil {
-		return errors.New(err.Error())
+		return err
 	}
-	certerr := ioutil.WriteFile(COPHome+"/server-cert.pem", cert, 0755)
+	certerr := ioutil.WriteFile(path.Join(COPHome, "server-cert.pem"), cert, 0755)
 	if certerr != nil {
 		log.Fatal("Error writing server-cert.pem to $COPHome directory")
 	}
-	keyerr := ioutil.WriteFile(COPHome+"/server-key.pem", key, 0755)
+	keyerr := ioutil.WriteFile(path.Join(COPHome, "server-key.pem"), key, 0755)
 	if keyerr != nil {
 		log.Fatal("Error writing server-key.pem to $COPHome directory")
 	}

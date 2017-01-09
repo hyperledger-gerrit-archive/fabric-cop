@@ -55,7 +55,8 @@ func enrollMain(args []string, c cli.Config) error {
 		return err
 	}
 
-	copServer, args, err := cli.PopFirstArgument(args)
+	loadMyIdentity := false
+	client, _, err := loadClient(loadMyIdentity)
 	if err != nil {
 		return err
 	}
@@ -63,11 +64,6 @@ func enrollMain(args []string, c cli.Config) error {
 	req := &api.EnrollmentRequest{
 		Name:   id,
 		Secret: secret,
-	}
-
-	client, err := NewClient(copServer)
-	if err != nil {
-		return err
 	}
 
 	// Read the CSR JSON file if provided

@@ -42,19 +42,10 @@ var reenrollFlags = []string{}
 func reenrollMain(args []string, c cli.Config) error {
 	log.Debug("Entering cli/client/reenrollMain")
 
-	copServer, args, err := cli.PopFirstArgument(args)
+	loadMyIdentity := true
+	client, id, err := loadClient(loadMyIdentity)
 	if err != nil {
 		return err
-	}
-
-	client, err := NewClient(copServer)
-	if err != nil {
-		return err
-	}
-
-	id, err := client.LoadMyIdentity()
-	if err != nil {
-		return fmt.Errorf("Client is not yet enrolled: %s", err)
 	}
 
 	req := &api.ReenrollmentRequest{}

@@ -40,11 +40,7 @@ Flags:
 var revokeFlags = []string{"aki", "serial", "reason"}
 
 func revokeMain(args []string, c cli.Config) error {
-
-	copServer, args, err := cli.PopFirstArgument(args)
-	if err != nil {
-		return err
-	}
+	var err error
 
 	var enrollmentID string
 	if len(args) > 0 {
@@ -54,12 +50,8 @@ func revokeMain(args []string, c cli.Config) error {
 		}
 	}
 
-	client, err := NewClient(copServer)
-	if err != nil {
-		return err
-	}
-
-	id, err := client.LoadMyIdentity()
+	loadMyIdentity := true
+	_, id, err := loadClient(loadMyIdentity)
 	if err != nil {
 		return err
 	}

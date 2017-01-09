@@ -42,7 +42,7 @@ var registerFlags = []string{}
 
 func registerMain(args []string, c cli.Config) error {
 
-	regFile, args, err := cli.PopFirstArgument(args)
+	regFile, _, err := cli.PopFirstArgument(args)
 	if err != nil {
 		return err
 	}
@@ -58,17 +58,8 @@ func registerMain(args []string, c cli.Config) error {
 		return err
 	}
 
-	copServer, _, err := cli.PopFirstArgument(args)
-	if err != nil {
-		return err
-	}
-
-	client, err := NewClient(copServer)
-	if err != nil {
-		return err
-	}
-
-	id, err := client.LoadMyIdentity()
+	loadMyIdentity := true
+	_, id, err := loadClient(loadMyIdentity)
 	if err != nil {
 		return err
 	}
