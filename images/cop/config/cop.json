@@ -1,5 +1,7 @@
 {
  "tls_disable":true,
+ "ca_cert":"ec.pem",
+ "ca_key":"ec-key.pem",
  "users": {
     "admin": {
       "pass": "adminpw",

@@ -4,4 +4,4 @@ RUN mkdir -p $COP_HOME /var/hyperledger/fabric-cop
 COPY payload/cop /usr/local/bin
 ADD payload/sampleconfig.tar.bz2 $COP_HOME
 EXPOSE 8888
-CMD cop server start -address 0.0.0.0 -config $COP_HOME/cop.json
+CMD cop server start -address 0.0.0.0 -ca $COP_HOME/ec.pem -ca-key $COP_HOME/ec-key.pem -config $COP_HOME/cop.json
