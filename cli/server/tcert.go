@@ -18,6 +18,7 @@ package server
 
 import (
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -47,6 +48,7 @@ func NewTCertHandler() (h http.Handler, err error) {
 
 func initTCertHandler() (h http.Handler, err error) {
 	log.Debug("Initializing TCert handler")
+	// csp := CFG.csp : This will be added after COP BCCSP integration is functional
 	csp, err := util.GetBCCSP(nil)
 	if err != nil {
 		return nil, err
@@ -55,6 +57,8 @@ func initTCertHandler() (h http.Handler, err error) {
 	if err != nil {
 		return nil, err
 	}
+	mgr.BCCSP = csp //Default BCCSP for the time being. Will make it configuration driven when
+	// CoP BCCSP starts working
 	// TODO: The root prekey must be stored persistently in DB and retrieved here if not found
 	rootKey, err := util.GenRootKey(csp)
 	if err != nil {
@@ -78,18 +82,34 @@ func (h *tcertHandler) Handle(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *tcertHandler) handle(w http.ResponseWriter, r *http.Request) error {
-
 	// Read and unmarshall the request body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return fmt.Errorf("Failure reading request body: %s", err)
 	}
 	req := &idp.GetPrivateSignersRequest{}
+
 	err = util.Unmarshal(body, req, "tcert request")
 	if err != nil {
 		return err
 	}
 
+	signatureBatch := req.SignatureBatch
+	var pubKeyByteArray [][]byte
+
+	//Validate Signature
+	if len(signatureBatch) != 0 {
+
+		isValid, error := h.mgr.VerifyTCertBatchRequest(req)
+		if error != nil {
+			return err
+		}
+		if !isValid {
+			return errors.New("Signature Validation failed on Signature Batch")
+		}
+		pubKeyByteArray, error = tcert.BatchRequestToPubkeyBuff(req)
+
+	}
 	// Get an X509 certificate from the authorization header associated with the caller
 	cert, err := getCertFromAuthHdr(r)
 	if err != nil {
@@ -120,16 +140,27 @@ func (h *tcertHandler) handle(w http.ResponseWriter, r *http.Request) error {
 		EncryptAttrs:   req.EncryptAttrs,
 		ValidityPeriod: req.ValidityPeriod,
 		PreKey:         prekeyStr,
-	}
-	resp, err := h.mgr.GetBatch(tcertReq, cert)
-	if err != nil {
-		return err
+		PublicKeys:     pubKeyByteArray,
 	}
 
+	var resp *tcert.GetBatchResponse
+	var tcertError error
+
+	if len(signatureBatch) == 0 {
+		resp, tcertError = h.mgr.GetBatch(tcertReq, cert)
+
+	} else {
+		resp, tcertError = h.mgr.GetBatchForGeneratedKey(tcertReq)
+	}
+	if tcertError != nil {
+		return tcertError
+	}
+	if resp == nil {
+		return errors.New("TCert Library did not return any TCert")
+	}
 	// Write the response
 	api.SendResponse(w, resp)
 
-	// Success
 	return nil
 
 }

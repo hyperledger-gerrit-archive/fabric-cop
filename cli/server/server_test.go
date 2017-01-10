@@ -17,13 +17,24 @@ limitations under the License.
 package server
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/sha256"
+	"crypto/sha512"
+	"crypto/x509"
 	"encoding/base64"
+	"errors"
 	"fmt"
+	"hash"
 	"io/ioutil"
+	"math/big"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"golang.org/x/crypto/sha3"
 
 	factory "github.com/hyperledger/fabric-cop"
 	"github.com/hyperledger/fabric-cop/cli/server/dbutil"
@@ -223,6 +234,7 @@ func TestRevoke(t *testing.T) {
 }
 
 func TestGetTCerts(t *testing.T) {
+	fmt.Println("AVANI")
 	copServer := `{"serverURL":"https://localhost:8888"}`
 	c, err := lib.NewClient(copServer)
 	if err != nil {
@@ -241,6 +253,23 @@ func TestGetTCerts(t *testing.T) {
 	if err != nil {
 		t.Errorf("GetPrivateSigners failed: %s", err)
 	}
+
+	//Getting TCerts for option 2
+	pubKeySigBatch, error := GetTemporalBatch(&idp.GetPrivateSignersRequest{
+		Count: 1,
+	}, 1)
+	if error != nil {
+		t.Logf("Public Key generation failed : [%v]", error)
+	}
+
+	_, tcertError := id.GetPrivateSigners(&idp.GetPrivateSignersRequest{
+		Count:          1,
+		SignatureBatch: pubKeySigBatch,
+	})
+	if tcertError != nil {
+		t.Errorf("GetPrivateSigners for Client Generated Request failed: %s", err)
+	}
+
 }
 
 func TestMaxEnrollment(t *testing.T) {
@@ -458,4 +487,74 @@ func testWithoutAuthHdr(c *lib.Client, t *testing.T) {
 	if err == nil {
 		t.Error("testWithAuthHdr.SendPost should have failed but passed")
 	}
+}
+
+func GetTemporalBatch(batchRequest *idp.GetPrivateSignersRequest, count int) ([]idp.KeySigPair, error) {
+
+	var priv *ecdsa.PrivateKey
+	var err error
+	var ecSignaure idp.ECSignature
+	var signature idp.Signature
+	var tempCrypto idp.KeySigPair
+
+	//Generate Payload based on the batch Request
+	batchRaw := fmt.Sprintf("%v", batchRequest)
+	raw := []byte((batchRaw))
+
+	//payload := batchRequest.Payload
+
+	var set []idp.KeySigPair
+	for i := 0; i < count; i++ {
+		priv, err = ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+		if err != nil {
+			return nil, err
+		}
+		pubASN1, marshallError := x509.MarshalPKIXPublicKey(&priv.PublicKey)
+		if marshallError != nil {
+			return nil, marshallError
+		}
+		r, s, signError := ECDSASignDirect(priv, raw, "SHA2_256")
+		if signError != nil {
+			return nil, signError
+		}
+		ecSignaure = idp.ECSignature{R: r, S: s}
+		signature = idp.Signature{
+			HashAlgo:    "SHA2_256",
+			ECSignature: ecSignaure,
+		}
+
+		tempCrypto = idp.KeySigPair{Payload: raw, PublicKey: pubASN1, Signature: signature}
+
+		set = append(set, tempCrypto)
+
+	}
+
+	return set, nil
+}
+
+func ECDSASignDirect(signKey interface{}, msg []byte, hashAlgo string) (*big.Int, *big.Int, error) {
+	temp := signKey.(*ecdsa.PrivateKey)
+
+	var hash hash.Hash
+
+	switch hashAlgo {
+	case "SHA2_256":
+		hash = sha256.New()
+	case "SHA2_384":
+		hash = sha512.New384()
+	case "SHA3_256":
+		hash = sha3.New256()
+	case "SHA3_384":
+		hash = sha3.New384()
+	default:
+		return nil, nil, errors.New("Hash Algorithm not recognized")
+	}
+	hash.Write(msg)
+	h := hash.Sum(nil)
+
+	r, s, err := ecdsa.Sign(rand.Reader, temp, h)
+	if err != nil {
+		return nil, nil, err
+	}
+	return r, s, nil
 }

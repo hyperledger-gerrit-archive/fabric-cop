@@ -198,6 +198,7 @@ func (tm *Mgr) GetBatch(req *GetBatchRequest, ecert *x509.Certificate) (*GetBatc
 // GetBatchForGeneratedKey returns batch of TCerts for locally generated Key
 // This is used for HSM Friendly TCert generation , no Key Derivation
 func (tm *Mgr) GetBatchForGeneratedKey(req *GetBatchRequest) (*GetBatchResponse, error) {
+	log.Debugf("GetBatchForGeneratedKey req=%+v", req)
 	var errorMessage string
 	if req == nil {
 		errorMessage = "GetBatchRequest Request is nil"
