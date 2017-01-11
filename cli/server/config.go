@@ -43,7 +43,7 @@ type Config struct {
 	UsrReg         UserReg          `json:"user_registry"`
 	LDAP           *ldap.Config     `json:"ldap,omitempty"`
 	CAFile         string           `json:"ca_cert"`
-	KeyFile        string           `json:"ca_key"`
+	CAKeyFile      string           `json:"ca_key"`
 	TLSConf        TLSConfig        `json:"tls,omitempty"`
 	TLSDisable     bool             `json:"tls_disable,omitempty"`
 }
@@ -103,7 +103,7 @@ func configInit(cfg *cli.Config) {
 	}
 
 	CFG.CAFile = abs(CFG.CAFile)
-	CFG.KeyFile = abs(CFG.KeyFile)
+	CFG.CAKeyFile = abs(CFG.CAKeyFile)
 	CFG.TLSConf.TLSCertFile = abs(CFG.TLSConf.TLSCertFile)
 	CFG.TLSConf.TLSKeyFile = abs(CFG.TLSConf.TLSKeyFile)
 	CFG.TLSConf.MutualTLSCAFile = abs(CFG.TLSConf.MutualTLSCAFile)
@@ -113,19 +113,27 @@ func configInit(cfg *cli.Config) {
 		cfg.DBConfigFile = cfg.ConfigFile
 	}
 
-	if CFG.TLSConf.TLSCertFile != "" {
+	if CFG.CAFile != "" && cfg.CAFile == "" {
+		cfg.CAFile = CFG.CAFile
+	}
+
+	if CFG.CAKeyFile != "" && cfg.CAKeyFile == "" {
+		cfg.CAKeyFile = CFG.CAKeyFile
+	}
+
+	if CFG.TLSConf.TLSCertFile != "" && cfg.TLSCertFile == "" {
 		cfg.TLSCertFile = CFG.TLSConf.TLSCertFile
-	} else {
+	} else if CFG.TLSConf.TLSCertFile == "" && cfg.TLSCertFile == "" {
 		cfg.TLSCertFile = CFG.CAFile
 	}
 
-	if CFG.TLSConf.TLSKeyFile != "" {
+	if CFG.TLSConf.TLSKeyFile != "" && cfg.TLSKeyFile == "" {
 		cfg.TLSKeyFile = CFG.TLSConf.TLSKeyFile
-	} else {
-		cfg.TLSKeyFile = CFG.KeyFile
+	} else if CFG.TLSConf.TLSKeyFile == "" && cfg.TLSKeyFile == "" {
+		cfg.TLSKeyFile = CFG.CAKeyFile
 	}
 
-	if CFG.TLSConf.MutualTLSCAFile != "" {
+	if CFG.TLSConf.MutualTLSCAFile != "" && cfg.MutualTLSCAFile == "" {
 		cfg.MutualTLSCAFile = CFG.TLSConf.MutualTLSCAFile
 	}
 
@@ -137,7 +145,9 @@ func configInit(cfg *cli.Config) {
 	}
 
 	if CFG.DBdriver == sqlite {
-		CFG.DataSource = abs(CFG.DataSource)
+		dir := abs(homeDir)
+		datasource := filepath.Join(dir, CFG.DataSource)
+		CFG.DataSource = datasource
 	}
 
 	dbg := os.Getenv("COP_DEBUG")

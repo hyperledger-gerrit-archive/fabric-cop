@@ -24,6 +24,7 @@ import (
 	"github.com/hyperledger/fabric-cop/cli/server/dbutil"
 	"github.com/hyperledger/fabric-cop/cli/server/spi"
 	"github.com/hyperledger/fabric-cop/idp"
+	"github.com/hyperledger/fabric-cop/util"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -100,6 +101,7 @@ func testEverything(ta TestAccessor, t *testing.T) {
 	testInsertAndGetGroup(ta, t)
 	testDeleteGroup(ta, t)
 	testUpdateAndGetField(ta, t)
+	testGetRootGroup(ta, t)
 }
 
 func testInsertAndGetUser(ta TestAccessor, t *testing.T) {
@@ -242,5 +244,11 @@ func testUpdateAndGetField(ta TestAccessor, t *testing.T) {
 	if err != nil {
 		t.Errorf("Error occured during insert query of ID: %s, error: %s", insert.Name, err)
 	}
+}
 
+func testGetRootGroup(ta TestAccessor, t *testing.T) {
+	_, err := ta.Accessor.GetRootGroup()
+	if err != util.ErrNotImplemented {
+		t.Error("Should have thrown an error")
+	}
 }
