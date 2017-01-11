@@ -71,7 +71,11 @@ func startServer() {
 }
 
 func runServer() {
-	Start("../../testdata", CFGFile)
+	s := new(Server)
+	s.ConfigDir = "../../testdata"
+	s.ConfigFile = CFGFile
+	s.StartFromConfig = true
+	s.Start()
 }
 
 func TestPostgresFail(t *testing.T) {

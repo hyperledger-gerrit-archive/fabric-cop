@@ -25,6 +25,7 @@ import (
 	"github.com/cloudflare/cfssl/log"
 	"github.com/hyperledger/fabric-cop/api"
 	"github.com/hyperledger/fabric-cop/cli/server/spi"
+	"github.com/hyperledger/fabric-cop/util"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/kisielk/sqlstruct"
@@ -356,7 +357,7 @@ func (d *Accessor) GetRootGroup() (spi.Group, error) {
 		return nil, err
 	}
 	// TODO: IMPLEMENT
-	return nil, errors.New("NOT YET IMPLEMENTED")
+	return nil, util.ErrNotImplemented
 }
 
 // Creates a DBUser object from the DB user record
