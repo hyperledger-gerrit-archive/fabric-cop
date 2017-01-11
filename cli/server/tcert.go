@@ -51,7 +51,7 @@ func initTCertHandler() (h http.Handler, err error) {
 	if err != nil {
 		return nil, err
 	}
-	mgr, err := tcert.LoadMgr(CFG.KeyFile, CFG.CAFile)
+	mgr, err := tcert.LoadMgr(CFG.CAKeyFile, CFG.CAFile)
 	if err != nil {
 		return nil, err
 	}
