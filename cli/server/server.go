@@ -110,6 +110,9 @@ func Command() error {
 
 // Server ...
 type Server struct {
+	ConfigDir       string
+	ConfigFile      string
+	StartFromConfig bool
 }
 
 // CreateHome will create a home directory if it does not exist
@@ -168,12 +171,12 @@ func startMain(args []string, c cli.Config) error {
 		return err
 	}
 
-	return serverMain(args, c)
+	return s.serverMain(args, c)
 }
 
 // serverMain is the command line entry point to the API server. It sets up a
 // new HTTP server to handle all endpoints
-func serverMain(args []string, c cli.Config) error {
+func (s *Server) serverMain(args []string, c cli.Config) error {
 	conf = c
 	// serve doesn't support arguments.
 	if len(args) > 0 {
@@ -410,14 +413,21 @@ func SignerFromConfigAndDB(c cli.Config, db *sqlx.DB) (signer.Signer, error) {
 
 // Start will start server
 // THIS IS ONLY USED FOR TEST CASE EXECUTION
-func Start(dir string, cfg string) {
+func (s *Server) Start() {
 	log.Debug("Server starting")
 	osArgs := os.Args
-	cert := filepath.Join(dir, "ec.pem")
-	key := filepath.Join(dir, "ec-key.pem")
-	config := filepath.Join(dir, cfg)
-	os.Args = []string{"server", "start", "-ca", cert, "-ca-key", key, "-config", config}
+	config := filepath.Join(s.ConfigDir, s.ConfigFile)
+
+	if !s.StartFromConfig {
+		cert := filepath.Join(s.ConfigDir, "ec.pem")
+		key := filepath.Join(s.ConfigDir, "ec-key.pem")
+		os.Args = []string{"server", "start", "-ca", cert, "-ca-key", key, "-config", config}
+	} else {
+		os.Args = []string{"server", "start", "-config", config}
+	}
+
 	Command()
+
 	os.Args = osArgs
 }
 
