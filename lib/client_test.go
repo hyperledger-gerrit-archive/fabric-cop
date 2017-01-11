@@ -33,6 +33,7 @@ import (
 
 const (
 	ClientTLSConfig string = "cop_client.json"
+	CFGFile                = "testconfig.json"
 )
 
 var serverStarted bool
@@ -253,7 +254,12 @@ func startServer() int {
 func runServer() {
 	os.Setenv("COP_DEBUG", "true")
 	os.Setenv("COP_HOME", dir)
-	server.Start("../testdata", "testconfig.json")
+	s := new(server.Server)
+	s.ConfigDir = "../testdata"
+	s.ConfigFile = CFGFile
+	s.StartFromConfig = true
+	s.Timeout = 10
+	s.Start()
 }
 
 func TestLast(t *testing.T) {

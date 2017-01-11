@@ -35,6 +35,7 @@ const (
 	CFGFile         = "testconfig.json"
 	ClientTLSConfig = "cop_client.json"
 	COPDB           = "../../testdata/cop.db"
+	Timeout         = 10
 )
 
 var serverStarted bool
@@ -71,7 +72,12 @@ func startServer() {
 }
 
 func runServer() {
-	Start("../../testdata", CFGFile)
+	s := new(Server)
+	s.ConfigDir = "../../testdata"
+	s.ConfigFile = CFGFile
+	s.StartFromConfig = true
+	s.Timeout = 10
+	s.Start()
 }
 
 func TestPostgresFail(t *testing.T) {
