@@ -35,6 +35,7 @@ var dir string
 const (
 	ClientTLSConfig = "cop_client.json"
 	COPDB           = "../../testdata/cop.db"
+	CFGFile         = "testconfig.json"
 )
 
 // TestNewClient tests constructing a client
@@ -216,7 +217,11 @@ func TestLast(t *testing.T) {
 
 func runServer() {
 	os.Setenv("COP_DEBUG", "true")
-	server.Start("../../testdata", "testconfig.json")
+	s := new(server.Server)
+	s.ConfigDir = "../../testdata"
+	s.ConfigFile = CFGFile
+	s.StartFromConfig = false
+	s.Start()
 }
 
 func startServer() {
