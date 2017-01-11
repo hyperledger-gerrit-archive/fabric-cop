@@ -100,6 +100,7 @@ func testEverything(ta TestAccessor, t *testing.T) {
 	testInsertAndGetGroup(ta, t)
 	testDeleteGroup(ta, t)
 	testUpdateAndGetField(ta, t)
+	testGetRootGroup(ta, t)
 }
 
 func testInsertAndGetUser(ta TestAccessor, t *testing.T) {
@@ -242,5 +243,11 @@ func testUpdateAndGetField(ta TestAccessor, t *testing.T) {
 	if err != nil {
 		t.Errorf("Error occured during insert query of ID: %s, error: %s", insert.Name, err)
 	}
+}
 
+func testGetRootGroup(ta TestAccessor, t *testing.T) {
+	_, err := ta.Accessor.GetRootGroup()
+	if err.Error() != "NOT YET IMPLEMENTED" {
+		t.Error("Should have thrown an error")
+	}
 }
