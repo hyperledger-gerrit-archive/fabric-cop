@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/cloudflare/cfssl/log"
+	"github.com/hyperledger/fabric-cop/lib/tcert"
 	"github.com/spf13/viper"
 )
 
@@ -62,6 +63,7 @@ func (b *Bootstrap) populateGroup(name, parent, key string, level int) {
 			b.populateGroup(childName, name, newKey, level-1)
 		}
 	}
+
 }
 
 // PopulateGroupsTable populates affiliation groups table based on the groups defined in the server configuration file
@@ -105,9 +107,18 @@ func (b *Bootstrap) registerGroup(name string, parentName string) error {
 		return errors.New("Group already registered")
 	}
 
-	err = userRegistry.InsertGroup(name, parentName)
-	if err != nil {
-		log.Error(err)
+	var prekey string
+	if parentName == "" {
+		prekey = tcert.CreateRootPreKey()
+		err = userRegistry.InsertGroup(name, parentName, prekey)
+		if err != nil {
+			log.Error(err)
+		}
+	} else {
+		err = userRegistry.InsertGroup(name, parentName, prekey)
+		if err != nil {
+			log.Error(err)
+		}
 	}
 
 	return err

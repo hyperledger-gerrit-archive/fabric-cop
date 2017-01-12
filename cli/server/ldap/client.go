@@ -211,7 +211,7 @@ func (lc *Client) GetRootGroup() (spi.Group, error) {
 }
 
 // InsertGroup adds an affiliation group
-func (lc *Client) InsertGroup(name string, parentID string) error {
+func (lc *Client) InsertGroup(name string, parentID string, prekey string) error {
 	return errNotSupported
 }
 

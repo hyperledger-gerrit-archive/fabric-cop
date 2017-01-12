@@ -56,15 +56,15 @@ SELECT * FROM users
 	WHERE (id = ?)`
 
 	insertGroup = `
-INSERT INTO groups (name, parent_id)
-	VALUES (?, ?)`
+INSERT INTO groups (name, parent_id, prekey)
+	VALUES (?, ?, ?)`
 
 	deleteGroup = `
 DELETE FROM groups
 	WHERE (name = ?)`
 
 	getGroup = `
-SELECT name, parent_id FROM groups
+SELECT name, parent_id, prekey FROM groups
 	WHERE (name = ?)`
 )
 
@@ -292,25 +292,16 @@ func (d *Accessor) GetUser(id string, attrs []string) (spi.User, error) {
 }
 
 // InsertGroup inserts group into database
-func (d *Accessor) InsertGroup(name string, parentID string) error {
-	log.Debugf("DB: Insert Group (%s)", name)
+func (d *Accessor) InsertGroup(name string, parentID string, prekey string) error {
+	log.Debugf("DB: Insert Group (%s), Parent: %s", name, parentID)
 	err := d.checkDB()
 	if err != nil {
 		return err
 	}
-	_, err = d.db.Exec(d.db.Rebind(insertGroup), name, parentID)
+	_, err = d.db.Exec(d.db.Rebind(insertGroup), name, parentID, prekey)
 	if err != nil {
 		return err
 	}
-
-	/*
-		preKeyString := crypto.CreateRootPreKey()
-
-		_, err = d.db.Exec("UPDATE groups SET prekey = ? WHERE (name = ?)", preKeyString, name)
-		if err != nil {
-			return err
-		}
-	*/
 
 	return nil
 }
@@ -341,10 +332,15 @@ func (d *Accessor) GetGroup(name string) (spi.Group, error) {
 
 	var groupInfo spi.GroupInfo
 
-	err = d.db.Get(&groupInfo, d.db.Rebind(getGroup), name)
+	var groupRecord GroupRecord
+	err = d.db.Get(&groupRecord, d.db.Rebind(getGroup), name)
 	if err != nil {
 		return nil, err
 	}
+
+	groupInfo.Name = groupRecord.Name
+	groupInfo.ParentID = groupRecord.ParentID
+	groupInfo.Prekey = groupRecord.Prekey
 
 	return &groupInfo, nil
 }

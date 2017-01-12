@@ -32,7 +32,8 @@ import (
 )
 
 const (
-	ClientTLSConfig string = "cop_client.json"
+	ClientTLSConfig = "cop_client.json"
+	COPDB           = "../testdata/cop.db"
 )
 
 var serverStarted bool
@@ -258,5 +259,6 @@ func runServer() {
 
 func TestLast(t *testing.T) {
 	// Cleanup
+	os.RemoveAll(COPDB)
 	os.RemoveAll(dir)
 }

@@ -34,8 +34,9 @@ type UserInfo struct {
 
 // GroupInfo defines a group name and its parent
 type GroupInfo struct {
-	Name     string `db:"name"`
-	ParentID string `db:"parent_id"`
+	Name     string
+	ParentID string
+	Prekey   string
 }
 
 // User is the SPI for a user
@@ -67,6 +68,6 @@ type UserRegistry interface {
 	GetField(id string, field int) (interface{}, error)
 	GetGroup(name string) (Group, error)
 	GetRootGroup() (Group, error)
-	InsertGroup(name string, parentID string) error
+	InsertGroup(name string, parentID string, key string) error
 	DeleteGroup(name string) error
 }
