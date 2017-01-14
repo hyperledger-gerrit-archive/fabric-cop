@@ -2,8 +2,7 @@ FROM golang
 ENV GOPATH=/opt/gopath
 ENV PATH=$GOPATH/bin:$PATH
 
-RUN go get github.com/hyperledger/fabric-cop/cli
-RUN mv $GOPATH/bin/cli $GOPATH/bin/cop
+RUN go get github.com/hyperledger/fabric-cop/cop
 
 # Copy the configuration for the cop and certificate setups
 WORKDIR /config
