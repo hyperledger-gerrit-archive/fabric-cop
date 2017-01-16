@@ -305,7 +305,8 @@ registerrequest.json:
   "id": "User1",
   "type": "client",
   "group": "bank_a",
-  "attrs": [{"name":"AttributeName","value":"AttributeValue"}]
+  "attrs": [{"name":"AttributeName","value":"AttributeValue"}],
+  "max_enrollments": 1
 }
 ```
 
