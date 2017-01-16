@@ -73,12 +73,18 @@ func (sh *signHandler) Handle(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
+	if enrollSigner == nil {
+		err = fmt.Errorf("Sign endpoint not enabled, server started without certificate and/or key")
+		log.Error(err.Error())
+		return err
+	}
+
 	cert, err := enrollSigner.Sign(req)
 	if err != nil {
 		err = fmt.Errorf("Failed signing for endpoint %s: %s", sh.endpoint, err)
 		log.Error(err.Error())
 		return err
 	}
-
 	return cfsslapi.SendResponse(w, cert)
+
 }
