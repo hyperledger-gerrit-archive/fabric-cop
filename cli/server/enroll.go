@@ -17,6 +17,7 @@ limitations under the License.
 package server
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -59,6 +60,12 @@ func (sh *signHandler) Handle(w http.ResponseWriter, r *http.Request) error {
 
 	log.Debugf("Received request for endpoint %s", sh.endpoint)
 
+	if enrollSigner == nil {
+		err := errors.New("The enroll endpoint is disabled because the server was started without a certificate and/or key.")
+		log.Error(err)
+		return err
+	}
+
 	// Read the request's body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -79,6 +86,6 @@ func (sh *signHandler) Handle(w http.ResponseWriter, r *http.Request) error {
 		log.Error(err.Error())
 		return err
 	}
-
 	return cfsslapi.SendResponse(w, cert)
+
 }
