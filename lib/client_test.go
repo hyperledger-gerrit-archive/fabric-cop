@@ -29,9 +29,11 @@ import (
 	"github.com/cloudflare/cfssl/log"
 	"github.com/hyperledger/fabric-cop/api"
 	"github.com/hyperledger/fabric-cop/cli/server"
+	"github.com/hyperledger/fabric-cop/util"
 )
 
 const (
+	CFGFile         = "testconfig.json"
 	ClientTLSConfig = "cop_client.json"
 	COPDB           = "../testdata/cop.db"
 )
@@ -44,7 +46,11 @@ func TestAllClient(t *testing.T) {
 	startServer()
 
 	clientConfig := filepath.Join(dir, ClientTLSConfig)
-	os.Link("../testdata/cop_client.json", clientConfig)
+	config, _ := filepath.Abs("../testdata/cop_client.json")
+	err := util.CopyFile(config, clientConfig)
+	if err != nil {
+		t.Error("Failed to create client config file link, err: ", err)
+	}
 
 	c := getClient()
 
@@ -252,7 +258,7 @@ func startServer() int {
 func runServer() {
 	os.Setenv("COP_DEBUG", "true")
 	os.Setenv("COP_HOME", dir)
-	server.Start("../testdata", "testconfig.json")
+	server.Start("../testdata", CFGFile)
 }
 
 func TestLast(t *testing.T) {
